@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Aconselhamento Bíblico</title>
+<title>Aconselhamento Bíblico Cristocêntrico</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" />
+<link rel="apple-touch-icon" href="logo.png" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Aconselhamento Bíblico Cristocêntrico" />
+<meta property="og:description" content="Aconselhamento e cuidado à luz da Palavra de Deus." />
+<meta property="og:image" content="https://autoconfrontacaobiblica-lgtm.github.io/autoconfrontacao-biblica/og-image.png" />
+<meta property="og:url" content="https://autoconfrontacaobiblica-lgtm.github.io/autoconfrontacao-biblica/" />
+<meta name="twitter:card" content="summary_large_image" />
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <style>
@@ -43,6 +51,17 @@
     z-index: 5;
     background: var(--bg);
   }
+  #header-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  #header-logo {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
   header h1 {
     margin: 0;
     font-size: 1.4rem;
@@ -56,6 +75,103 @@
   }
   header p.hidden {
     display: none;
+  }
+  #input-label {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 6px 20px 4px;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 1.15rem;
+    text-align: center;
+    line-height: 1.4;
+  }
+  #input-label span {
+    color: var(--accent);
+    font-weight: bold;
+  }
+  #input-label.hidden {
+    display: none;
+  }
+  #site-footer {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    opacity: 0.75;
+    margin: 0;
+    padding: 6px 0 10px;
+  }
+  .welcome-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    margin: auto;
+    padding: 20px 10px;
+  }
+  .logo-frame {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-frame::before {
+    content: "";
+    position: absolute;
+    inset: -18px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(247, 200, 119, 0.65) 0%, rgba(247, 200, 119, 0.28) 45%, transparent 72%);
+    animation: logo-glow 3s ease-in-out infinite;
+    z-index: 0;
+  }
+  .welcome-hero img {
+    position: relative;
+    z-index: 1;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+  }
+  @keyframes logo-glow {
+    0%, 100% { transform: scale(0.8); opacity: 0.6; }
+    50% { transform: scale(2); opacity: 1; }
+  }
+  .welcome-hero h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--accent-dark);
+    letter-spacing: 0.02em;
+  }
+  .verse-card {
+    background: var(--user-bubble);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 22px;
+    max-width: 480px;
+  }
+  .verse-card p {
+    margin: 0;
+    font-style: italic;
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 0.98rem;
+  }
+  .verse-card span {
+    display: block;
+    margin-top: 10px;
+    font-style: normal;
+    font-weight: bold;
+    color: var(--accent-dark);
+    font-size: 0.86rem;
+  }
+  .welcome-note {
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0;
   }
   #chat-container {
     width: 100%;
@@ -199,11 +315,43 @@
     background: var(--bg-panel);
     flex-shrink: 0;
   }
-  #input-row textarea {
+  @property --glow-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+  .input-glow-wrap {
+    position: relative;
     flex: 1;
+    border-radius: 12px;
+    padding: 3px;
+    background: conic-gradient(
+      from var(--glow-angle),
+      var(--accent) 0deg,
+      var(--accent) 200deg,
+      #f7c877 250deg,
+      #fff2cf 290deg,
+      #ffffff 300deg,
+      #fff2cf 310deg,
+      #f7c877 350deg,
+      var(--accent) 360deg
+    );
+    animation: glow-spin 3s linear infinite, glow-pulse 2s ease-in-out infinite;
+  }
+  @keyframes glow-spin {
+    to { --glow-angle: 360deg; }
+  }
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 10px 1px rgba(240, 180, 90, 0.4); }
+    50% { box-shadow: 0 0 26px 6px rgba(240, 180, 90, 0.85); }
+  }
+  #input-row textarea {
+    display: block;
+    flex: 1;
+    width: 100%;
     resize: none;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    border: none;
+    border-radius: 9px;
     padding: 10px 12px;
     font-family: inherit;
     font-size: 0.98rem;
@@ -242,7 +390,15 @@
   @media (max-width: 480px) {
     header { padding: 12px 14px 8px; }
     header h1 { font-size: 1.2rem; }
+    #header-logo { width: 26px; height: 26px; }
     header p { font-size: 0.82rem; }
+    .welcome-hero img { width: 64px; height: 64px; }
+    .logo-frame { width: 64px; height: 64px; }
+    .logo-frame::before { inset: -14px; }
+    .welcome-hero h2 { font-size: 1.1rem; }
+    .verse-card { padding: 12px 16px; }
+    .verse-card p { font-size: 0.9rem; }
+    #input-label { font-size: 1rem; padding: 0 14px; }
     #chat-container { margin: 6px 8px 8px; border-radius: 10px; }
     #messages { padding: 14px 12px; gap: 10px; }
     .msg { max-width: 92%; font-size: 0.94rem; padding: 10px 13px; }
@@ -255,14 +411,19 @@
 <body>
 
 <header>
-  <h1>Aconselhamento Bíblico</h1>
-  <p id="header-subtitle">Escreva sua situação e você será ajudado(a) por meio do aconselhamento bíblico cristocêntrico.</p>
+  <div id="header-title-row">
+    <img id="header-logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" alt="Logotipo Aconselhamento Bíblico Cristocêntrico" />
+    <h1>Aconselhamento Bíblico Cristocêntrico</h1>
+  </div>
 </header>
 
 <div id="chat-container">
   <div id="messages"></div>
+  <p id="input-label">Escreva sua situação e você será ajudado(a) por meio do aconselhamento bíblico cristocêntrico <span aria-hidden="true">↓</span></p>
   <div id="input-row">
-    <textarea id="user-input" placeholder="Escreva aqui o que você está enfrentando…" rows="2"></textarea>
+    <div class="input-glow-wrap">
+      <textarea id="user-input" placeholder="Escreva aqui o que você está enfrentando…" rows="2"></textarea>
+    </div>
     <button id="send-btn">Enviar</button>
   </div>
   <div id="toolbar">
@@ -270,6 +431,7 @@
     <button id="whatsapp-btn" class="toolbar-btn" title="Enviar esta conversa pelo WhatsApp" disabled>🟢 Enviar por WhatsApp</button>
     <button id="pdf-btn" class="toolbar-btn" title="Salvar esta conversa como PDF" disabled>🖨️ Salvar em PDF</button>
   </div>
+  <p id="site-footer">© Autoconfrontação Bíblica · 2026</p>
 </div>
 
 
@@ -278,13 +440,15 @@
   const WORKER_URL = "https://aconselhamento-biblico.lana-lopes-psicopedagoga.workers.dev";
   const APP_SECRET = "biblico2026";
   const CLOSING_MARKER = "[CONVERSA_CONCLUIDA]";
+  const CRISIS_ALERT_TEXT = "Se você estiver passando por uma crise ou sofrimento intenso, não enfrente isso sozinho(a): compartilhe sua dor com pessoas próximas, um pastor ou uma igreja genuinamente cristã, e busque também canais oficiais de apoio — CVV 188 (ligação gratuita, 24h) ou suporte médico/terapêutico profissional.";
+  const FOOTER_TEXT = "© Autoconfrontação Bíblica · 2026";
   // ============================
 
   const messagesEl = document.getElementById("messages");
   const inputRowEl = document.getElementById("input-row");
   const inputEl = document.getElementById("user-input");
   const sendBtn = document.getElementById("send-btn");
-  const headerSubtitleEl = document.getElementById("header-subtitle");
+  const inputLabelEl = document.getElementById("input-label");
   const restartBtn = document.getElementById("restart-btn");
   const whatsappBtn = document.getElementById("whatsapp-btn");
   const pdfBtn = document.getElementById("pdf-btn");
@@ -293,17 +457,23 @@
   // "Reiniciar", apaga tudo — de propósito, sem guardar nada entre visitas.
   let history = [];
 
+  const LOGO_DATA_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==";
+
   function renderWelcome() {
     messagesEl.innerHTML = "";
-    const div = document.createElement("div");
-    div.className = "msg system-note";
-    div.textContent = "Escreva à vontade. Esta conversa não é salva em nenhum lugar.";
-    messagesEl.appendChild(div);
+    const hero = document.createElement("div");
+    hero.className = "welcome-hero";
+    hero.innerHTML =
+      '<div class="logo-frame"><img src="' + LOGO_DATA_URI + '" alt="Logotipo Aconselhamento Bíblico Cristocêntrico" /></div>' +
+      "<h2>Aconselhamento Bíblico Cristocêntrico</h2>" +
+      '<div class="verse-card"><p>“Habite, ricamente, em vós a palavra de Cristo; instruí-vos e aconselhai-vos mutuamente em toda a sabedoria, louvando a Deus, com salmos, e hinos, e cânticos espirituais, com gratidão, em vosso coração.”<span>Colossenses 3:16</span></p></div>';
+    messagesEl.appendChild(hero);
+    inputLabelEl.classList.remove("hidden");
   }
 
   function clearWelcomeNote() {
-    const note = messagesEl.querySelector(".system-note");
-    if (note) note.remove();
+    const hero = messagesEl.querySelector(".welcome-hero");
+    if (hero) hero.remove();
   }
 
   function scrollToBottom() {
@@ -329,7 +499,7 @@
 
   function appendUserBubble(text, historyIndexBefore) {
     clearWelcomeNote();
-    headerSubtitleEl.classList.add("hidden");
+    inputLabelEl.classList.add("hidden");
 
     const wrapper = document.createElement("div");
     wrapper.className = "user-turn";
@@ -561,7 +731,7 @@
 
   function restartConversation() {
     history = [];
-    headerSubtitleEl.classList.remove("hidden");
+    inputLabelEl.classList.remove("hidden");
     inputEl.value = "";
     inputEl.disabled = false;
     sendBtn.disabled = false;
@@ -675,7 +845,7 @@
     const lastAssistantMsg = [...exportable].reverse().find((m) => m.role === "assistant");
     const userAnswers = exportable.filter((m) => m.role === "user").slice(1);
 
-    let text = "*Registro de Aconselhamento Bíblico*\n" + new Date().toLocaleDateString("pt-BR") + "\n\n";
+    let text = "*Registro de Aconselhamento Bíblico Cristocêntrico*\n" + new Date().toLocaleDateString("pt-BR") + "\n\n";
 
     if (firstUserMsg) {
       text += "*Situação relatada:*\n" + firstUserMsg.text + "\n\n";
@@ -688,8 +858,9 @@
       text += "\n";
     }
     if (lastAssistantMsg) {
-      text += "*Orientação final:*\n" + toWhatsAppFormatting(lastAssistantMsg.text);
+      text += "*Orientação final:*\n" + toWhatsAppFormatting(lastAssistantMsg.text) + "\n\n";
     }
+    text += "⚠️ *Atenção:*\n" + CRISIS_ALERT_TEXT + "\n\n" + FOOTER_TEXT;
     return text;
   }
 
@@ -716,7 +887,7 @@
       bodyHtml += '<div class="turn ' + cls + '"><div class="label">' + label + "</div><div class=\"content\">" + contentHtml + "</div></div>";
     });
     win.document.write(
-      "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"UTF-8\"><title>Registro de Aconselhamento Bíblico</title>" +
+      "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"UTF-8\"><title>Registro de Aconselhamento Bíblico Cristocêntrico</title>" +
         "<style>" +
         "body{font-family:Georgia,serif;color:#2b2420;padding:30px 40px;max-width:720px;margin:0 auto;}" +
         "h1{color:#5c2c22;font-size:1.3rem;margin-bottom:2px;}" +
@@ -726,10 +897,15 @@
         ".content p{margin:0 0 8px;}" +
         ".content strong{color:#5c2c22;}" +
         "hr{border:none;border-top:1px solid #ddd;margin:14px 0;}" +
+        ".crisis-alert{margin-top:26px;padding:14px 16px;background:#fbeaea;border:1px solid #e6b8b8;border-radius:8px;font-size:0.85rem;color:#7a2e2e;page-break-inside:avoid;}" +
+        ".crisis-alert strong{color:#7a2e2e;}" +
+        ".site-footer{margin-top:18px;text-align:center;font-size:0.72rem;color:#6b5f52;opacity:0.85;}" +
         "</style></head><body>" +
-        "<h1>Registro de Aconselhamento Bíblico</h1>" +
+        "<h1>Registro de Aconselhamento Bíblico Cristocêntrico</h1>" +
         "<div class=\"date\">" + dateStr + "</div>" +
         bodyHtml +
+        "<div class=\"crisis-alert\"><strong>⚠️ Atenção:</strong> " + CRISIS_ALERT_TEXT + "</div>" +
+        "<div class=\"site-footer\">" + FOOTER_TEXT + "</div>" +
         "</body></html>"
     );
     win.document.close();
