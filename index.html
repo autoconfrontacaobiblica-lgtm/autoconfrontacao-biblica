@@ -14,6 +14,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <style>
   :root {
     --bg: #f6f1e7;
@@ -873,11 +874,14 @@
 
   pdfBtn.addEventListener("click", () => {
     if (!history.length) return;
-    const win = window.open("", "_blank");
-    if (!win) {
-      appendErrorNote("Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-ups.");
+    if (typeof html2pdf === "undefined") {
+      appendErrorNote("Não foi possível gerar o PDF agora. Verifique sua conexão com a internet e tente novamente.");
       return;
     }
+    const originalLabel = pdfBtn.textContent;
+    pdfBtn.disabled = true;
+    pdfBtn.textContent = "⏳ Gerando PDF…";
+
     const dateStr = new Date().toLocaleDateString("pt-BR");
     let bodyHtml = "";
     buildExportableHistory().forEach((m) => {
@@ -886,31 +890,43 @@
       const contentHtml = m.role === "assistant" ? renderMarkdown(m.text) : "<p>" + m.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>") + "</p>";
       bodyHtml += '<div class="turn ' + cls + '"><div class="label">' + label + "</div><div class=\"content\">" + contentHtml + "</div></div>";
     });
-    win.document.write(
-      "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"UTF-8\"><title>Registro de Aconselhamento Bíblico Cristocêntrico</title>" +
-        "<style>" +
-        "body{font-family:Georgia,serif;color:#2b2420;padding:30px 40px;max-width:720px;margin:0 auto;}" +
-        "h1{color:#5c2c22;font-size:1.3rem;margin-bottom:2px;}" +
-        ".date{color:#6b5f52;font-size:0.85rem;margin-bottom:24px;}" +
-        ".turn{margin-bottom:18px;page-break-inside:avoid;}" +
-        ".label{font-weight:bold;color:#7a3b2e;font-size:0.8rem;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.03em;}" +
-        ".content p{margin:0 0 8px;}" +
-        ".content strong{color:#5c2c22;}" +
-        "hr{border:none;border-top:1px solid #ddd;margin:14px 0;}" +
-        ".crisis-alert{margin-top:26px;padding:14px 16px;background:#fbeaea;border:1px solid #e6b8b8;border-radius:8px;font-size:0.85rem;color:#7a2e2e;page-break-inside:avoid;}" +
-        ".crisis-alert strong{color:#7a2e2e;}" +
-        ".site-footer{margin-top:18px;text-align:center;font-size:0.72rem;color:#6b5f52;opacity:0.85;}" +
-        "</style></head><body>" +
-        "<h1>Registro de Aconselhamento Bíblico Cristocêntrico</h1>" +
-        "<div class=\"date\">" + dateStr + "</div>" +
-        bodyHtml +
-        "<div class=\"crisis-alert\"><strong>⚠️ Atenção:</strong> " + CRISIS_ALERT_TEXT + "</div>" +
-        "<div class=\"site-footer\">" + FOOTER_TEXT + "</div>" +
-        "</body></html>"
-    );
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 400);
+
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = "700px";
+    container.style.background = "#ffffff";
+    container.innerHTML =
+      "<div style=\"font-family:Georgia,serif;color:#2b2420;padding:30px 40px;\">" +
+        "<h1 style=\"color:#5c2c22;font-size:1.3rem;margin:0 0 2px;\">Registro de Aconselhamento Bíblico Cristocêntrico</h1>" +
+        "<div style=\"color:#6b5f52;font-size:0.85rem;margin-bottom:24px;\">" + dateStr + "</div>" +
+        bodyHtml.replace(/class="turn (assistant|user)"/g, 'style="margin-bottom:18px;"').replace(/class="label"/g, 'style="font-weight:bold;color:#7a3b2e;font-size:0.8rem;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.03em;"').replace(/class="content"/g, 'style="line-height:1.5;"') +
+        "<div style=\"margin-top:26px;padding:14px 16px;background:#fbeaea;border:1px solid #e6b8b8;border-radius:8px;font-size:0.85rem;color:#7a2e2e;\"><strong>⚠️ Atenção:</strong> " + CRISIS_ALERT_TEXT + "</div>" +
+        "<div style=\"margin-top:18px;text-align:center;font-size:0.72rem;color:#6b5f52;opacity:0.85;\">" + FOOTER_TEXT + "</div>" +
+      "</div>";
+    document.body.appendChild(container);
+
+    const filename = "aconselhamento-biblico-" + new Date().toISOString().slice(0, 10) + ".pdf";
+    html2pdf()
+      .set({
+        margin: 10,
+        filename: filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      })
+      .from(container)
+      .save()
+      .catch(() => {
+        appendErrorNote("Não foi possível gerar o PDF agora. Tente novamente.");
+      })
+      .finally(() => {
+        container.remove();
+        pdfBtn.disabled = false;
+        pdfBtn.textContent = originalLabel;
+      });
   });
 
   restartBtn.addEventListener("click", restartConversation);
