@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aconselhamento Bíblico</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f1e7;
+    --bg-panel: #fffdf8;
+    --ink: #2b2420;
+    --ink-soft: #6b5f52;
+    --accent: #7a3b2e;
+    --accent-dark: #5c2c22;
+    --user-bubble: #eadfc9;
+    --bot-bubble: #ffffff;
+    --border: #e2d6bd;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Georgia", "Iowan Old Style", serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header {
+    width: 100%;
+    max-width: 760px;
+    padding: 16px 20px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: var(--accent-dark);
+    letter-spacing: 0.02em;
+  }
+  header p {
+    margin: 6px 0 0;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+  header p.hidden {
+    display: none;
+  }
+  #chat-container {
+    width: 100%;
+    max-width: 760px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin: 10px 16px 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 18px rgba(90, 60, 30, 0.08);
+  }
+  #toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: #fbf6ea;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+  .toolbar-btn {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .toolbar-btn:hover:not(:disabled) { background: var(--user-bubble); }
+  .toolbar-btn:disabled { opacity: 0.4; cursor: default; }
+  #messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    max-width: 84%;
+    padding: 12px 16px;
+    border-radius: 14px;
+    line-height: 1.55;
+    font-size: 0.98rem;
+  }
+  .msg.user {
+    background: var(--user-bubble);
+    border-bottom-right-radius: 4px;
+    white-space: pre-wrap;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.assistant p { margin: 0 0 10px; }
+  .msg.assistant p:last-child { margin-bottom: 0; }
+  .msg.assistant h1, .msg.assistant h2, .msg.assistant h3 {
+    color: var(--accent-dark);
+    margin: 14px 0 8px;
+    font-size: 1.05rem;
+  }
+  .msg.assistant h1:first-child, .msg.assistant h2:first-child, .msg.assistant h3:first-child { margin-top: 0; }
+  .msg.assistant strong { color: var(--accent-dark); }
+  .msg.assistant em { color: var(--ink); }
+  .msg.assistant ul, .msg.assistant ol { margin: 6px 0; padding-left: 22px; }
+  .msg.assistant li { margin-bottom: 4px; }
+  .msg.assistant hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .msg.error {
+    align-self: center;
+    background: #fbeaea;
+    border: 1px solid #e6b8b8;
+    color: #7a2e2e;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  .msg.system-note {
+    align-self: center;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 0.85rem;
+    background: none;
+    padding: 4px;
+    text-align: center;
+  }
+  .user-turn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    align-self: flex-end;
+    max-width: 84%;
+    gap: 3px;
+  }
+  .user-turn .msg.user { max-width: 100%; }
+  .edit-link {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0 4px;
+    opacity: 0.65;
+  }
+  .edit-link:hover { opacity: 1; text-decoration: underline; }
+  .options-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-self: flex-start;
+    max-width: 84%;
+    margin-top: -6px;
+  }
+  .option-btn {
+    background: var(--bg-panel);
+    border: 1.5px solid var(--accent);
+    color: var(--accent-dark);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .option-btn:hover:not(:disabled) { background: var(--user-bubble); }
+  .option-btn:disabled { opacity: 0.4; cursor: default; }
+  #input-row {
+    display: flex;
+    gap: 10px;
+    padding: 14px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  #input-row textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.98rem;
+    min-height: 44px;
+    max-height: 140px;
+    background: #fffefb;
+    color: var(--ink);
+  }
+  #input-row textarea:focus {
+    outline: 2px solid var(--accent);
+  }
+  #input-row textarea:disabled {
+    background: #f1ede4;
+    color: var(--ink-soft);
+  }
+  #send-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0 20px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #send-btn:hover:not(:disabled) { background: var(--accent-dark); }
+  #send-btn:disabled { opacity: 0.5; cursor: default; }
+  .typing {
+    align-self: flex-start;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 0.9rem;
+    padding: 4px 4px;
+  }
+
+  @media (max-width: 480px) {
+    header { padding: 12px 14px 8px; }
+    header h1 { font-size: 1.2rem; }
+    header p { font-size: 0.82rem; }
+    #chat-container { margin: 6px 8px 8px; border-radius: 10px; }
+    #messages { padding: 14px 12px; gap: 10px; }
+    .msg { max-width: 92%; font-size: 0.94rem; padding: 10px 13px; }
+    .user-turn, .options-row { max-width: 92%; }
+    .toolbar-btn { font-size: 0.76rem; padding: 6px 10px; }
+    #input-row { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Aconselhamento Bíblico</h1>
+  <p id="header-subtitle">Escreva sua situação e você será ajudado(a) por meio do aconselhamento bíblico cristocêntrico.</p>
+</header>
+
+<div id="chat-container">
+  <div id="messages"></div>
+  <div id="input-row">
+    <textarea id="user-input" placeholder="Escreva aqui o que você está enfrentando…" rows="2"></textarea>
+    <button id="send-btn">Enviar</button>
+  </div>
+  <div id="toolbar">
+    <button id="restart-btn" class="toolbar-btn" title="Apagar tudo e começar uma nova conversa">🔄 Reiniciar</button>
+    <button id="whatsapp-btn" class="toolbar-btn" title="Enviar esta conversa pelo WhatsApp" disabled>🟢 Enviar por WhatsApp</button>
+    <button id="pdf-btn" class="toolbar-btn" title="Salvar esta conversa como PDF" disabled>🖨️ Salvar em PDF</button>
+  </div>
+</div>
+
+
+<script>
+  // ====== CONFIGURAÇÃO ======
+  const WORKER_URL = "https://aconselhamento-biblico.lana-lopes-psicopedagoga.workers.dev";
+  const APP_SECRET = "biblico2026";
+  const CLOSING_MARKER = "[CONVERSA_CONCLUIDA]";
+  // ============================
+
+  const messagesEl = document.getElementById("messages");
+  const inputRowEl = document.getElementById("input-row");
+  const inputEl = document.getElementById("user-input");
+  const sendBtn = document.getElementById("send-btn");
+  const headerSubtitleEl = document.getElementById("header-subtitle");
+  const restartBtn = document.getElementById("restart-btn");
+  const whatsappBtn = document.getElementById("whatsapp-btn");
+  const pdfBtn = document.getElementById("pdf-btn");
+
+  // A conversa vive só na memória desta aba. Recarregar a página, ou clicar em
+  // "Reiniciar", apaga tudo — de propósito, sem guardar nada entre visitas.
+  let history = [];
+
+  function renderWelcome() {
+    messagesEl.innerHTML = "";
+    const div = document.createElement("div");
+    div.className = "msg system-note";
+    div.textContent = "Escreva à vontade. Esta conversa não é salva em nenhum lugar.";
+    messagesEl.appendChild(div);
+  }
+
+  function clearWelcomeNote() {
+    const note = messagesEl.querySelector(".system-note");
+    if (note) note.remove();
+  }
+
+  function scrollToBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // A caixa de digitação livre só aparece na primeira mensagem (para descrever a
+  // situação) e enquanto não houver botões de opção para responder. Depois disso,
+  // some, e a pessoa responde só pelos botões — a não ser que esteja editando uma
+  // resposta anterior, quando ela volta a aparecer.
+  function setInputRowVisible(visible) {
+    inputRowEl.style.display = visible ? "flex" : "none";
+  }
+
+  function truncateFromInclusive(node) {
+    let el = node;
+    while (el) {
+      const next = el.nextSibling;
+      el.remove();
+      el = next;
+    }
+  }
+
+  function appendUserBubble(text, historyIndexBefore) {
+    clearWelcomeNote();
+    headerSubtitleEl.classList.add("hidden");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "user-turn";
+
+    const div = document.createElement("div");
+    div.className = "msg user";
+    div.textContent = text;
+    wrapper.appendChild(div);
+
+    const editLink = document.createElement("button");
+    editLink.className = "edit-link";
+    editLink.type = "button";
+    editLink.textContent = "✏️ voltar e mudar esta resposta";
+    editLink.addEventListener("click", () => {
+      truncateFromInclusive(wrapper);
+      history = history.slice(0, historyIndexBefore);
+
+      const lastChild = messagesEl.lastElementChild;
+      if (lastChild && lastChild.classList.contains("options-row")) {
+        Array.from(lastChild.querySelectorAll("button")).forEach((b) => (b.disabled = false));
+      }
+
+      inputEl.disabled = false;
+      sendBtn.disabled = false;
+      inputEl.value = text;
+      setInputRowVisible(true);
+      inputEl.focus();
+      updateExportButtonsState();
+      if (!messagesEl.children.length) renderWelcome();
+    });
+    wrapper.appendChild(editLink);
+
+    messagesEl.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
+  }
+
+  function appendErrorNote(text, retryText) {
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.alignItems = "center";
+    wrapper.style.gap = "6px";
+    wrapper.style.alignSelf = "center";
+
+    const div = document.createElement("div");
+    div.className = "msg error";
+    div.textContent = "⚠️ " + text;
+    wrapper.appendChild(div);
+
+    if (retryText !== undefined) {
+      const retryBtn = document.createElement("button");
+      retryBtn.className = "option-btn";
+      retryBtn.type = "button";
+      retryBtn.textContent = "🔁 Tentar novamente";
+      retryBtn.addEventListener("click", () => {
+        wrapper.remove();
+        sendMessage(retryText);
+      });
+      wrapper.appendChild(retryBtn);
+    }
+
+    messagesEl.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
+  }
+
+  // Detecta um bloco de opções numeradas (1. ... 2. ... 3. ...) no FINAL do texto
+  // e devolve { body, options } separando o texto principal das opções.
+  function extractOptions(rawText) {
+    const lines = rawText.split("\n");
+    let lastContentIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i].trim() !== "") { lastContentIdx = i; break; }
+    }
+    if (lastContentIdx === -1) return { body: rawText, options: null };
+
+    const optionRe = /^\s*(\d{1,2})\.\s+(.+)$/;
+    const group = [];
+    let cursor = lastContentIdx;
+    while (cursor >= 0) {
+      const line = lines[cursor];
+      if (line.trim() === "") { cursor--; continue; }
+      const m = line.match(optionRe);
+      if (!m) break;
+      group.unshift({ idx: cursor, num: m[1], label: m[2] });
+      cursor--;
+    }
+
+    if (group.length < 2) return { body: rawText, options: null };
+
+    const firstIdx = group[0].idx;
+    const bodyLines = lines.slice(0, firstIdx);
+    const body = bodyLines.join("\n").trim();
+    const options = group.map((o) => ({
+      num: o.num,
+      label: o.label.replace(/\*\*/g, "").replace(/[*_`]/g, "").trim(),
+    }));
+    return { body: body || rawText, options };
+  }
+
+  function renderMarkdown(text) {
+    if (window.marked && window.DOMPurify) {
+      const html = marked.parse(text, { breaks: true });
+      return DOMPurify.sanitize(html);
+    }
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return escaped.replace(/\n/g, "<br>");
+  }
+
+  function appendOptionsRow(options) {
+    const row = document.createElement("div");
+    row.className = "options-row";
+    options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.type = "button";
+      btn.textContent = opt.num + ". " + opt.label;
+      btn.addEventListener("click", () => {
+        Array.from(row.querySelectorAll("button")).forEach((b) => (b.disabled = true));
+        sendMessage(opt.num);
+      });
+      row.appendChild(btn);
+    });
+
+    // Opção extra: voltar e mudar a resposta que levou a esta pergunta.
+    const backBtn = document.createElement("button");
+    backBtn.className = "option-btn";
+    backBtn.type = "button";
+    backBtn.textContent = "↩️ Voltar e mudar resposta anterior";
+    backBtn.addEventListener("click", () => {
+      const userTurns = messagesEl.querySelectorAll(".user-turn");
+      const lastUserTurn = userTurns[userTurns.length - 1];
+      const editBtn = lastUserTurn && lastUserTurn.querySelector(".edit-link");
+      if (editBtn) editBtn.click();
+    });
+    row.appendChild(backBtn);
+
+    messagesEl.appendChild(row);
+  }
+
+  function appendClosingRow() {
+    const row = document.createElement("div");
+    row.className = "options-row";
+
+    const btnNew = document.createElement("button");
+    btnNew.className = "option-btn";
+    btnNew.type = "button";
+    btnNew.textContent = "💬 Tratar outra situação";
+    btnNew.addEventListener("click", () => restartConversation());
+
+    const btnEnd = document.createElement("button");
+    btnEnd.className = "option-btn";
+    btnEnd.type = "button";
+    btnEnd.textContent = "✅ Encerrar conversa";
+    btnEnd.addEventListener("click", () => {
+      Array.from(row.querySelectorAll("button")).forEach((b) => (b.disabled = true));
+      const note = document.createElement("div");
+      note.className = "msg system-note";
+      note.textContent =
+        "Conversa encerrada. Que Deus abençoe sua caminhada. 🙏 Você pode salvar o registro em PDF, enviar por WhatsApp, ou reiniciar a qualquer momento pelo botão no topo.";
+      messagesEl.appendChild(note);
+      scrollToBottom();
+    });
+
+    row.appendChild(btnNew);
+    row.appendChild(btnEnd);
+    messagesEl.appendChild(row);
+  }
+
+  function appendAssistantBubble(rawText) {
+    clearWelcomeNote();
+
+    let text = rawText;
+    let isClosing = false;
+    if (text.includes(CLOSING_MARKER)) {
+      isClosing = true;
+      text = text.split(CLOSING_MARKER).join("").trim();
+    }
+
+    const div = document.createElement("div");
+    div.className = "msg assistant";
+
+    if (isClosing) {
+      div.innerHTML = renderMarkdown(text);
+      messagesEl.appendChild(div);
+      appendClosingRow();
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
+      setInputRowVisible(false);
+    } else {
+      const { body, options } = extractOptions(text);
+      div.innerHTML = renderMarkdown(body);
+      messagesEl.appendChild(div);
+      if (options) {
+        appendOptionsRow(options);
+        setInputRowVisible(false);
+      } else {
+        setInputRowVisible(true);
+      }
+    }
+
+    scrollToBottom();
+  }
+
+  function setLoading(isLoading) {
+    sendBtn.disabled = isLoading || inputEl.disabled;
+    inputEl.disabled = isLoading || inputEl.disabled;
+    let typingEl = document.getElementById("typing-indicator");
+    if (isLoading) {
+      if (!typingEl) {
+        typingEl = document.createElement("div");
+        typingEl.id = "typing-indicator";
+        typingEl.className = "typing";
+        typingEl.textContent = "Refletindo…";
+        messagesEl.appendChild(typingEl);
+        scrollToBottom();
+      }
+    } else if (typingEl) {
+      typingEl.remove();
+    }
+  }
+
+  function updateExportButtonsState() {
+    const hasContent = history.length > 0;
+    whatsappBtn.disabled = !hasContent;
+    pdfBtn.disabled = !hasContent;
+  }
+
+  function restartConversation() {
+    history = [];
+    headerSubtitleEl.classList.remove("hidden");
+    inputEl.value = "";
+    inputEl.disabled = false;
+    sendBtn.disabled = false;
+    setInputRowVisible(true);
+    updateExportButtonsState();
+    renderWelcome();
+    inputEl.focus();
+  }
+
+  async function sendMessage(forcedText) {
+    const text = (forcedText !== undefined ? forcedText : inputEl.value).trim();
+    if (!text) return;
+
+    const historyIndexBefore = history.length;
+    const userWrapper = appendUserBubble(text, historyIndexBefore);
+    if (forcedText === undefined) inputEl.value = "";
+    setLoading(true);
+
+    const attemptedHistory = [...history, { role: "user", text }];
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-App-Secret": APP_SECRET,
+        },
+        body: JSON.stringify({ messages: attemptedHistory }),
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = { error: "O servidor demorou demais ou retornou uma resposta inesperada." };
+      }
+
+      setLoading(false);
+
+      if (!res.ok || !data.reply) {
+        userWrapper.remove();
+        if (forcedText === undefined) inputEl.value = text;
+        appendErrorNote(data.error || "Ocorreu um erro. Tente enviar de novo.", text);
+        return;
+      }
+
+      history = attemptedHistory;
+      history.push({ role: "assistant", text: data.reply });
+      updateExportButtonsState();
+      appendAssistantBubble(data.reply);
+    } catch (err) {
+      setLoading(false);
+      userWrapper.remove();
+      if (forcedText === undefined) inputEl.value = text;
+      appendErrorNote("Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.", text);
+    }
+  }
+
+  // ---- Exportar conversa ----
+
+  // Para o relatório (WhatsApp/PDF), não faz sentido repetir a lista de opções
+  // (1. Sim / 2. Não / 3. Dúvidas) — só a opção que a pessoa realmente escolheu.
+  // Esta função limpa a lista de opções de cada pergunta e troca a resposta
+  // numérica ("3") pelo texto da opção escolhida ("Dúvidas"), quando aplicável.
+  function buildExportableHistory() {
+    const result = [];
+    let lastOptions = null;
+    history.forEach((m) => {
+      if (m.role === "assistant") {
+        const clean = m.text.split(CLOSING_MARKER).join("").trim();
+        const { body, options } = extractOptions(clean);
+        result.push({ role: "assistant", text: body });
+        lastOptions = options;
+      } else {
+        let text = m.text;
+        if (lastOptions) {
+          const match = lastOptions.find((o) => o.num === text.trim());
+          if (match) text = match.label;
+        }
+        result.push({ role: "user", text });
+        lastOptions = null;
+      }
+    });
+    return result;
+  }
+
+  function buildTranscriptPlainText() {
+    return buildExportableHistory()
+      .map((m) => {
+        const label = m.role === "assistant" ? "Conselheiro" : "Você";
+        return label + ":\n" + m.text;
+      })
+      .join("\n\n");
+  }
+
+  function toWhatsAppFormatting(text) {
+    let t = text.replace(/\*\*(.+?)\*\*/g, "$1");
+    t = t.replace(/\*(.+?)\*/g, "_$1_");
+    t = t.replace(/(.+?)/g, "*$1*");
+    t = t.replace(/^#{1,6}\s*/gm, "");
+    t = t.replace(/^-{3,}\s*$/gm, "");
+    return t;
+  }
+
+  // Para o WhatsApp, em vez da conversa inteira (que pode ficar longa demais e cortar),
+  // manda um resumo: a situação inicial, um resumo curto das respostas dadas ao longo do
+  // caminho, e a orientação final completa (o conteúdo mais importante para guardar).
+  function buildWhatsAppReportText() {
+    const exportable = buildExportableHistory();
+    const firstUserMsg = exportable.find((m) => m.role === "user");
+    const lastAssistantMsg = [...exportable].reverse().find((m) => m.role === "assistant");
+    const userAnswers = exportable.filter((m) => m.role === "user").slice(1);
+
+    let text = "*Registro de Aconselhamento Bíblico*\n" + new Date().toLocaleDateString("pt-BR") + "\n\n";
+
+    if (firstUserMsg) {
+      text += "*Situação relatada:*\n" + firstUserMsg.text + "\n\n";
+    }
+    if (userAnswers.length) {
+      text += "*Respostas ao longo da conversa:*\n";
+      userAnswers.forEach((m, i) => {
+        text += (i + 1) + ". " + m.text + "\n";
+      });
+      text += "\n";
+    }
+    if (lastAssistantMsg) {
+      text += "*Orientação final:*\n" + toWhatsAppFormatting(lastAssistantMsg.text);
+    }
+    return text;
+  }
+
+  whatsappBtn.addEventListener("click", () => {
+    if (!history.length) return;
+    const full = buildWhatsAppReportText();
+    const encoded = encodeURIComponent(full);
+    window.open("https://wa.me/?text=" + encoded, "_blank");
+  });
+
+  pdfBtn.addEventListener("click", () => {
+    if (!history.length) return;
+    const win = window.open("", "_blank");
+    if (!win) {
+      appendErrorNote("Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-ups.");
+      return;
+    }
+    const dateStr = new Date().toLocaleDateString("pt-BR");
+    let bodyHtml = "";
+    buildExportableHistory().forEach((m) => {
+      const label = m.role === "assistant" ? "Conselheiro Bíblico" : "Você";
+      const cls = m.role === "assistant" ? "assistant" : "user";
+      const contentHtml = m.role === "assistant" ? renderMarkdown(m.text) : "<p>" + m.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>") + "</p>";
+      bodyHtml += '<div class="turn ' + cls + '"><div class="label">' + label + "</div><div class=\"content\">" + contentHtml + "</div></div>";
+    });
+    win.document.write(
+      "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"UTF-8\"><title>Registro de Aconselhamento Bíblico</title>" +
+        "<style>" +
+        "body{font-family:Georgia,serif;color:#2b2420;padding:30px 40px;max-width:720px;margin:0 auto;}" +
+        "h1{color:#5c2c22;font-size:1.3rem;margin-bottom:2px;}" +
+        ".date{color:#6b5f52;font-size:0.85rem;margin-bottom:24px;}" +
+        ".turn{margin-bottom:18px;page-break-inside:avoid;}" +
+        ".label{font-weight:bold;color:#7a3b2e;font-size:0.8rem;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.03em;}" +
+        ".content p{margin:0 0 8px;}" +
+        ".content strong{color:#5c2c22;}" +
+        "hr{border:none;border-top:1px solid #ddd;margin:14px 0;}" +
+        "</style></head><body>" +
+        "<h1>Registro de Aconselhamento Bíblico</h1>" +
+        "<div class=\"date\">" + dateStr + "</div>" +
+        bodyHtml +
+        "</body></html>"
+    );
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
+  });
+
+  restartBtn.addEventListener("click", restartConversation);
+  sendBtn.addEventListener("click", () => sendMessage());
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!sendBtn.disabled) sendMessage();
+    }
+  });
+
+  renderWelcome();
+  updateExportButtonsState();
+</script>
+
+</body>
+</html>
