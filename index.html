@@ -4,20 +4,25 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Aconselhamento Bíblico Cristocêntrico</title>
-
-<!-- Preconnect para acelerar o DNS das bibliotecas externas (Alta performance) -->
+<!-- Adianta a conexão com o servidor das bibliotecas externas, economizando tempo no
+     primeiro carregamento (especialmente no celular). -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-
 <script>
+  // Detecta cedo se a página está incorporada (embed) dentro de outra página, como
+  // um Google Site — nesse caso a altura do iframe é definida por fora e pode não
+  // bater com a tela do celular, o que empurrava o campo "Escreva aqui..." para o
+  // meio da tela. Rodando isto ANTES do CSS pintar a página, evitamos qualquer
+  // "pulo" visual: html.is-embedded já nasce com a classe certa.
   try {
     if (window.self !== window.top) {
       document.documentElement.classList.add("is-embedded");
     }
   } catch (e) {
+    // Acesso entre origens bloqueado pelo navegador só acontece quando já estamos
+    // dentro de um iframe de outra origem — ou seja, isso também é sinal de embed.
     document.documentElement.classList.add("is-embedded");
   }
 </script>
-
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" />
 <link rel="apple-touch-icon" href="logo.png" />
 <meta property="og:type" content="website" />
@@ -26,12 +31,10 @@
 <meta property="og:image" content="https://autoconfrontacaobiblica-lgtm.github.io/autoconfrontacao-biblica/og-image.png?v=2" />
 <meta property="og:url" content="https://autoconfrontacaobiblica-lgtm.github.io/autoconfrontacao-biblica/" />
 <meta name="twitter:card" content="summary_large_image" />
-
-<!-- Scripts com 'defer' para não bloquear a renderização da tela -->
+<!-- "defer" faz a tela aparecer sem esperar estas bibliotecas terminarem de baixar. -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
-
 <style>
   :root {
     --bg: #f6f1e7;
@@ -58,7 +61,6 @@
     flex-direction: column;
     align-items: center;
   }
-  
   header {
     width: 100%;
     max-width: 760px;
@@ -121,7 +123,6 @@
     margin: 0;
     padding: 6px 0 10px;
   }
-  
   .welcome-hero {
     display: flex;
     flex-direction: column;
@@ -187,7 +188,12 @@
     color: var(--accent-dark);
     font-size: 0.86rem;
   }
-  
+  .welcome-note {
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0;
+  }
   #chat-container {
     width: 100%;
     max-width: 760px;
@@ -221,11 +227,9 @@
     font-size: 0.82rem;
     font-family: inherit;
     cursor: pointer;
-    transition: background 0.2s, opacity 0.2s;
   }
   .toolbar-btn:hover:not(:disabled) { background: var(--user-bubble); }
   .toolbar-btn:disabled { opacity: 0.4; cursor: default; }
-  
   #messages {
     flex: 1;
     min-height: 0;
@@ -235,7 +239,6 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    scroll-behavior: smooth;
   }
   .msg {
     max-width: 84%;
@@ -244,7 +247,6 @@
     line-height: 1.55;
     font-size: 0.98rem;
   }
-  
   .msg.user {
     background: var(--user-bubble);
     border-bottom-right-radius: 4px;
@@ -280,7 +282,22 @@
   }
   .msg.assistant blockquote p { margin: 0; }
   .msg.assistant blockquote + blockquote { margin-top: -4px; }
-  
+  /* Cursor piscando enquanto a resposta está sendo escrita ao vivo, para deixar
+     claro que o texto ainda está chegando e não acabou. */
+  .msg.assistant.streaming::after {
+    content: "";
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: caret-blink 1s steps(1) infinite;
+  }
+  @keyframes caret-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
   .msg.error {
     align-self: center;
     background: #fbeaea;
@@ -316,10 +333,8 @@
     cursor: pointer;
     padding: 0 4px;
     opacity: 0.65;
-    transition: opacity 0.2s;
   }
   .edit-link:hover { opacity: 1; text-decoration: underline; }
-  
   .options-row {
     display: flex;
     flex-wrap: wrap;
@@ -337,11 +352,9 @@
     font-size: 0.9rem;
     font-family: inherit;
     cursor: pointer;
-    transition: background 0.2s, opacity 0.2s;
   }
   .option-btn:hover:not(:disabled) { background: var(--user-bubble); }
   .option-btn:disabled { opacity: 0.4; cursor: default; }
-  
   #input-row {
     display: flex;
     gap: 10px;
@@ -373,12 +386,13 @@
     );
     animation: glow-spin 3s linear infinite, glow-pulse 2s ease-in-out infinite;
   }
-  @keyframes glow-spin { to { --glow-angle: 360deg; } }
+  @keyframes glow-spin {
+    to { --glow-angle: 360deg; }
+  }
   @keyframes glow-pulse {
     0%, 100% { box-shadow: 0 0 10px 1px rgba(240, 180, 90, 0.4); }
     50% { box-shadow: 0 0 26px 6px rgba(240, 180, 90, 0.85); }
   }
-  
   #input-row textarea {
     display: block;
     flex: 1;
@@ -393,11 +407,14 @@
     max-height: 140px;
     background: #fffefb;
     color: var(--ink);
-    overflow-y: hidden;
   }
-  #input-row textarea:focus { outline: 2px solid var(--accent); }
-  #input-row textarea:disabled { background: #f1ede4; color: var(--ink-soft); }
-  
+  #input-row textarea:focus {
+    outline: 2px solid var(--accent);
+  }
+  #input-row textarea:disabled {
+    background: #f1ede4;
+    color: var(--ink-soft);
+  }
   #send-btn {
     background: var(--accent);
     color: #fff;
@@ -407,11 +424,9 @@
     font-size: 0.95rem;
     cursor: pointer;
     font-family: inherit;
-    transition: background 0.2s, opacity 0.2s;
   }
   #send-btn:hover:not(:disabled) { background: var(--accent-dark); }
   #send-btn:disabled { opacity: 0.5; cursor: default; }
-  
   .typing {
     align-self: flex-start;
     color: var(--ink-soft);
@@ -440,13 +455,29 @@
     #input-row { padding: 10px; }
   }
 
-  html.is-embedded, html.is-embedded body { height: auto; }
-  html.is-embedded body { display: block; }
-  html.is-embedded header { position: static; }
+  /* MODO INCORPORADO (embed em Google Sites ou outra página via iframe):
+     não dá para confiar que a altura do iframe bate com a tela do celular, então
+     abandonamos o layout "tela cheia fixa" (que empurrava o campo de digitação
+     para o meio da tela) e deixamos a página fluir normalmente, com o campo de
+     digitação grudado (sticky) na parte de baixo da área visível, onde quer que
+     a pessoa role a página. */
+  html.is-embedded, html.is-embedded body {
+    height: auto;
+  }
+  html.is-embedded body {
+    display: block;
+  }
+  html.is-embedded header {
+    position: static;
+  }
   html.is-embedded #chat-container {
     flex: none;
     height: auto;
     min-height: 420px;
+    /* #chat-container tinha "overflow: hidden" (para arredondar cantos no modo
+       tela cheia). Isso, sem querer, cria um contêiner de rolagem próprio e
+       impedia o "position: sticky" do campo de digitação de funcionar aqui —
+       por isso liberamos o overflow apenas no modo incorporado. */
     overflow: visible;
     border-radius: 14px 14px 0 0;
   }
@@ -477,7 +508,7 @@
   <p id="input-label">Escreva sua situação e você será ajudado(a) por meio do aconselhamento bíblico cristocêntrico <span aria-hidden="true">↓</span></p>
   <div id="input-row">
     <div class="input-glow-wrap">
-      <textarea id="user-input" placeholder="Escreva aqui o que você está enfrentando…" rows="1"></textarea>
+      <textarea id="user-input" placeholder="Escreva aqui o que você está enfrentando…" rows="2"></textarea>
     </div>
     <button id="send-btn">Enviar</button>
   </div>
@@ -489,15 +520,27 @@
   <p id="site-footer">© Autoconfrontação Bíblica · 2026</p>
 </div>
 
+
 <script>
+  // ====== CONFIGURAÇÃO ======
   const WORKER_URL = "https://aconselhamento-biblico.lana-lopes-psicopedagoga.workers.dev";
   const APP_SECRET = "biblico2026";
   const CLOSING_MARKER = "[CONVERSA_CONCLUIDA]";
   const CRISIS_ALERT_TEXT = "Se você estiver passando por uma crise ou sofrimento intenso, não enfrente isso sozinho(a): compartilhe sua dor com pessoas próximas, um pastor ou uma igreja genuinamente cristã, e busque também canais oficiais de apoio — CVV 188 (ligação gratuita, 24h) ou suporte médico/terapêutico profissional.";
   const FOOTER_TEXT = "© Autoconfrontação Bíblica · 2026";
+  // Mensagem sempre amigável para qualquer falha do servidor — nunca mostramos o
+  // texto técnico original do erro (ex.: mensagens em inglês do Gemini) para quem
+  // está usando o site; a pessoa só precisa saber que pode tentar de novo.
   const FRIENDLY_ERROR_TEXT = "Não deu para concluir agora. Isso costuma ser passageiro — toque em \"Tentar novamente\" em alguns segundos.";
   const FRIENDLY_NETWORK_ERROR_TEXT = "Não foi possível conectar agora. Verifique sua internet e toque em \"Tentar novamente\".";
-  const LOADING_PHRASES = ["Conectando...", "Buscando as Escrituras...", "Lendo a palavra..."];
+  // Frases que se alternam durante a espera, para a pessoa sentir que algo está
+  // de fato acontecendo (em vez de uma única palavra estática por até 10-15s).
+  const LOADING_PHRASES = ["Refletindo…", "Buscando as Escrituras…", "Preparando uma resposta cuidadosa…"];
+  // Tempo máximo esperando o PRIMEIRO pedaço de texto aparecer. Como agora o texto
+  // chega ao vivo, esse primeiro pedaço costuma vir em 1 a 2 segundos; se passar
+  // disso, algo está errado e partimos para o plano B em vez de deixar a pessoa parada.
+  const FIRST_CHUNK_TIMEOUT_MS = 20000;
+  // ============================
 
   const messagesEl = document.getElementById("messages");
   const inputRowEl = document.getElementById("input-row");
@@ -508,30 +551,30 @@
   const whatsappBtn = document.getElementById("whatsapp-btn");
   const pdfBtn = document.getElementById("pdf-btn");
 
+  // A conversa vive só na memória desta aba. Recarregar a página, ou clicar em
+  // "Reiniciar", apaga tudo — de propósito, sem guardar nada entre visitas.
   let history = [];
-  let isProcessing = false; // Trava contra multi-cliques
-  let activeAbortController = null; // Permite cancelar requisições em andamento
 
-  const LOGO_DATA_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==";
+  // Trava contra cliques repetidos: enquanto uma resposta está sendo buscada ou
+  // escrita, novos envios são ignorados (antes, dois toques rápidos no botão
+  // disparavam duas conversas ao mesmo tempo e bagunçavam o histórico).
+  let isProcessing = false;
+  // Permite cancelar de verdade a resposta em andamento ao clicar em "Reiniciar".
+  let activeAbortController = null;
 
-  // Auto-resize dinâmico do textarea
-  inputEl.addEventListener('input', function() {
-    this.style.height = '44px';
-    const scrollHeight = this.scrollHeight;
-    if(scrollHeight > 44) {
-      this.style.height = scrollHeight + 'px';
-    }
-    if (scrollHeight >= 140) {
-      this.style.overflowY = 'auto';
-    } else {
-      this.style.overflowY = 'hidden';
-    }
+  // A caixa de texto cresce sozinha conforme a pessoa escreve, até um limite.
+  function resetInputSize() {
+    inputEl.style.height = "44px";
+    inputEl.style.overflowY = "hidden";
+  }
+  inputEl.addEventListener("input", function () {
+    this.style.height = "44px";
+    const alturaReal = this.scrollHeight;
+    if (alturaReal > 44) this.style.height = Math.min(alturaReal, 140) + "px";
+    this.style.overflowY = alturaReal >= 140 ? "auto" : "hidden";
   });
 
-  function resetInputSize() {
-    inputEl.style.height = '44px';
-    inputEl.style.overflowY = 'hidden';
-  }
+  const LOGO_DATA_URI ="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==";
 
   function renderWelcome() {
     messagesEl.innerHTML = "";
@@ -554,11 +597,20 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // Ao chegar uma nova resposta do conselheiro, a tela deve rolar até o INÍCIO
+  // dessa resposta (não até o fim) — assim a pessoa entende que precisa começar a
+  // ler o texto a partir dali, e desce por conta própria até achar as perguntas
+  // de múltipla escolha no final. scrollIntoView cuida de rolar o contêiner certo
+  // tanto no site sozinho quanto quando ele está incorporado (embed) em outra página.
   function scrollToStartOf(el) {
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // A caixa de digitação livre só aparece na primeira mensagem (para descrever a
+  // situação) e enquanto não houver botões de opção para responder. Depois disso,
+  // some, e a pessoa responde só pelos botões — a não ser que esteja editando uma
+  // resposta anterior, quando ela volta a aparecer.
   function setInputRowVisible(visible) {
     inputRowEl.style.display = visible ? "flex" : "none";
   }
@@ -589,8 +641,7 @@
     editLink.type = "button";
     editLink.textContent = "✏️ voltar e mudar esta resposta";
     editLink.addEventListener("click", () => {
-      if (isProcessing) return; // Bloqueia edição enquanto aguarda/stream está ativo
-
+      if (isProcessing) return; // não deixa editar enquanto uma resposta está chegando
       truncateFromInclusive(wrapper);
       history = history.slice(0, historyIndexBefore);
 
@@ -602,7 +653,6 @@
       inputEl.disabled = false;
       sendBtn.disabled = false;
       inputEl.value = text;
-      inputEl.dispatchEvent(new Event('input'));
       setInputRowVisible(true);
       inputEl.focus();
       updateExportButtonsState();
@@ -634,7 +684,7 @@
       retryBtn.type = "button";
       retryBtn.textContent = "🔁 Tentar novamente";
       retryBtn.addEventListener("click", () => {
-        if(isProcessing) return;
+        if (isProcessing) return;
         wrapper.remove();
         sendMessage(retryText);
       });
@@ -646,6 +696,8 @@
     return wrapper;
   }
 
+  // Detecta um bloco de opções numeradas (1. ... 2. ... 3. ...) no FINAL do texto
+  // e devolve { body, options } separando o texto principal das opções.
   function extractOptions(rawText) {
     const lines = rawText.split("\n");
     let lastContentIdx = -1;
@@ -696,25 +748,28 @@
       btn.type = "button";
       btn.textContent = opt.num + ". " + opt.label;
       btn.addEventListener("click", () => {
-        if(isProcessing) return;
+        // Checa a trava ANTES de desabilitar os botões: se checássemos depois, um
+        // clique ignorado deixaria as opções desabilitadas para sempre.
+        if (isProcessing) return;
         Array.from(row.querySelectorAll("button")).forEach((b) => (b.disabled = true));
         sendMessage(opt.num);
       });
       row.appendChild(btn);
     });
 
+    // Opção extra: voltar e mudar a resposta que levou a esta pergunta.
     const backBtn = document.createElement("button");
     backBtn.className = "option-btn";
     backBtn.type = "button";
     backBtn.textContent = "↩️ Voltar e mudar resposta anterior";
     backBtn.addEventListener("click", () => {
-      if(isProcessing) return;
       const userTurns = messagesEl.querySelectorAll(".user-turn");
       const lastUserTurn = userTurns[userTurns.length - 1];
       const editBtn = lastUserTurn && lastUserTurn.querySelector(".edit-link");
       if (editBtn) editBtn.click();
     });
     row.appendChild(backBtn);
+
     messagesEl.appendChild(row);
   }
 
@@ -747,15 +802,9 @@
     messagesEl.appendChild(row);
   }
 
-  function createEmptyAssistantBubble() {
-    clearWelcomeNote();
-    const div = document.createElement("div");
-    div.className = "msg assistant";
-    messagesEl.appendChild(div);
-    return div;
-  }
-
-  function finalizeAssistantBubble(div, rawText) {
+  // Preenche uma bolha JÁ existente com o texto final e cuida do que vem depois dela
+  // (botões de opção, ou o encerramento da conversa).
+  function renderAssistantInto(div, rawText) {
     let text = rawText;
     let isClosing = false;
     if (text.includes(CLOSING_MARKER)) {
@@ -779,24 +828,68 @@
         setInputRowVisible(true);
       }
     }
+  }
+
+  // Caminho antigo (resposta inteira de uma vez) — continua sendo usado pelo plano B.
+  function appendAssistantBubble(rawText) {
+    clearWelcomeNote();
+    const div = document.createElement("div");
+    div.className = "msg assistant";
+    messagesEl.appendChild(div);
+    renderAssistantInto(div, rawText);
     scrollToStartOf(div);
+  }
+
+  // ---- Resposta ao vivo (o texto vai aparecendo enquanto é escrito) ----
+
+  // Enquanto a resposta chega, se a PESSOA rolar a tela por conta própria (dedo ou
+  // rodinha do mouse), respeitamos onde ela parou e não puxamos a tela de volta.
+  let userScrolledDuringStream = false;
+  function markUserScroll() { userScrolledDuringStream = true; }
+  function watchUserScroll(on) {
+    const alvos = [window, messagesEl];
+    const eventos = ["wheel", "touchmove"];
+    alvos.forEach((a) =>
+      eventos.forEach((e) =>
+        on ? a.addEventListener(e, markUserScroll, { passive: true })
+           : a.removeEventListener(e, markUserScroll)
+      )
+    );
+  }
+
+  // Cria a bolha vazia no momento em que o primeiro pedaço de texto chega, e já
+  // posiciona o início dela no topo da tela para a pessoa começar a ler dali.
+  // O "min-height" temporário reserva uma tela inteira de espaço: sem isso, não há
+  // como rolar o início da bolha até o topo enquanto ela ainda está quase vazia.
+  function beginAssistantStream() {
+    clearWelcomeNote();
+    const div = document.createElement("div");
+    div.className = "msg assistant streaming";
+    const embedded = document.documentElement.classList.contains("is-embedded");
+    const espaco = embedded ? window.innerHeight : messagesEl.clientHeight;
+    div.style.minHeight = Math.max(200, espaco) + "px";
+    messagesEl.appendChild(div);
+    userScrolledDuringStream = false;
+    watchUserScroll(true);
+    scrollToStartOf(div);
+    return div;
+  }
+
+  function finalizeAssistantStream(div, fullText) {
+    watchUserScroll(false);
+    div.classList.remove("streaming");
+    div.style.minHeight = "";
+    renderAssistantInto(div, fullText);
+    // Reposiciona o início da resposta no topo — mas só se a pessoa não tiver
+    // rolado a tela sozinha enquanto lia, para não arrancá-la de onde estava.
+    if (!userScrolledDuringStream) scrollToStartOf(div);
   }
 
   let loadingPhraseTimer = null;
 
-  function removeTypingIndicator() {
-    if (loadingPhraseTimer) {
-      clearInterval(loadingPhraseTimer);
-      loadingPhraseTimer = null;
-    }
-    const typingEl = document.getElementById("typing-indicator");
-    if (typingEl) typingEl.remove();
-  }
-
-  function setInitialLoadingUI(isLoading) {
-    sendBtn.disabled = isLoading;
-    inputEl.disabled = isLoading;
-    
+  function setLoading(isLoading) {
+    sendBtn.disabled = isLoading || inputEl.disabled;
+    inputEl.disabled = isLoading || inputEl.disabled;
     let typingEl = document.getElementById("typing-indicator");
     if (isLoading) {
       if (!typingEl) {
@@ -807,15 +900,21 @@
         messagesEl.appendChild(typingEl);
         scrollToBottom();
 
+        // Troca a frase a cada poucos segundos para dar a sensação de progresso
+        // enquanto o modelo responde, em vez de uma palavra parada na tela.
         let phraseIdx = 0;
         loadingPhraseTimer = setInterval(() => {
           phraseIdx = (phraseIdx + 1) % LOADING_PHRASES.length;
           const el = document.getElementById("typing-indicator");
           if (el) el.textContent = LOADING_PHRASES[phraseIdx];
-        }, 2000); 
+        }, 2800);
       }
     } else {
-      removeTypingIndicator();
+      if (loadingPhraseTimer) {
+        clearInterval(loadingPhraseTimer);
+        loadingPhraseTimer = null;
+      }
+      if (typingEl) typingEl.remove();
     }
   }
 
@@ -826,12 +925,13 @@
   }
 
   function restartConversation() {
+    // Se havia uma resposta sendo escrita, cancela de verdade antes de limpar tudo.
     if (activeAbortController) {
-      activeAbortController.abort();
+      try { activeAbortController.abort(); } catch (e) {}
       activeAbortController = null;
     }
-    setInitialLoadingUI(false);
-    isProcessing = false; 
+    setLoading(false);
+    isProcessing = false;
     history = [];
     inputLabelEl.classList.remove("hidden");
     inputEl.value = "";
@@ -844,9 +944,99 @@
     inputEl.focus();
   }
 
+  function commitAssistantReply(attemptedHistory, replyText) {
+    history = attemptedHistory;
+    history.push({ role: "assistant", text: replyText });
+    updateExportButtonsState();
+  }
+
+  // Tenta o modo ao vivo. Devolve true se conseguiu mostrar algum texto para a
+  // pessoa (mesmo que a conexão tenha caído no meio — nesse caso aproveitamos o
+  // que já chegou, em vez de jogar fora). Devolve false se não veio nada, e aí
+  // quem chamou parte para o plano B.
+  async function streamReply(attemptedHistory, controller) {
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+      body: JSON.stringify({ messages: attemptedHistory, stream: true }),
+      signal: controller.signal,
+    });
+
+    const tipo = res.headers.get("Content-Type") || "";
+    if (!res.ok || !res.body || tipo.indexOf("text/event-stream") === -1) return false;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let full = "";
+    let bubble = null;
+    let renderTimer = null;
+
+    // Se o primeiro pedaço não chegar a tempo, corta e parte para o plano B.
+    let firstChunkTimer = setTimeout(() => {
+      try { controller.abort(); } catch (e) {}
+    }, FIRST_CHUNK_TIMEOUT_MS);
+
+    const pintar = () => {
+      if (bubble) bubble.innerHTML = renderMarkdown(full.split(CLOSING_MARKER).join(""));
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let corte;
+        while ((corte = buffer.indexOf("\n\n")) !== -1) {
+          const bloco = buffer.slice(0, corte);
+          buffer = buffer.slice(corte + 2);
+
+          const linha = bloco.split("\n").find((l) => l.startsWith("data:"));
+          if (!linha) continue;
+          const cru = linha.slice(5).trim();
+          if (!cru) continue;
+
+          let obj;
+          try { obj = JSON.parse(cru); } catch (e) { continue; }
+
+          if (typeof obj.t === "string" && obj.t) {
+            if (!bubble) {
+              clearTimeout(firstChunkTimer);
+              firstChunkTimer = null;
+              setLoading(false);
+              bubble = beginAssistantStream();
+            }
+            full += obj.t;
+            // Redesenha no máximo a cada ~90ms: suficiente para parecer contínuo,
+            // sem gastar bateria/processamento redesenhando a cada letra.
+            if (!renderTimer) {
+              renderTimer = setTimeout(() => { renderTimer = null; pintar(); }, 90);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Conexão interrompida: seguimos com o que já tiver chegado.
+    } finally {
+      if (firstChunkTimer) clearTimeout(firstChunkTimer);
+      if (renderTimer) clearTimeout(renderTimer);
+    }
+
+    if (!full.trim()) {
+      if (bubble) bubble.remove();
+      return false;
+    }
+
+    commitAssistantReply(attemptedHistory, full);
+    finalizeAssistantStream(bubble, full);
+    return true;
+  }
+
   async function sendMessage(forcedText) {
-    if (isProcessing) return;
-    
+    if (isProcessing) return; // ignora cliques repetidos enquanto já está respondendo
+
     const text = (forcedText !== undefined ? forcedText : inputEl.value).trim();
     if (!text) return;
 
@@ -856,142 +1046,76 @@
       inputEl.value = "";
       resetInputSize();
     }
-    
     isProcessing = true;
-    setInitialLoadingUI(true);
-    
+    activeAbortController = new AbortController();
+    setLoading(true);
+
     const attemptedHistory = [...history, { role: "user", text }];
-    activeAbortController = new AbortController(); 
 
-    try {
-      const res = await fetch(WORKER_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-App-Secret": APP_SECRET,
-        },
-        body: JSON.stringify({ messages: attemptedHistory, stream: true }),
-        signal: activeAbortController.signal
-      });
-
-      const contentType = res.headers.get("content-type") || "";
-
-      // Fallback: Se o backend devolver JSON puro (ocorreu algum erro interno ou falha na emissão da live)
-      if (contentType.includes("application/json")) {
-        let data;
-        try { data = await res.json(); } catch(e) {}
-        
-        setInitialLoadingUI(false);
-        isProcessing = false;
-
-        if (!res.ok || !data || !data.reply) {
-          userWrapper.remove();
-          if (forcedText === undefined) {
-              inputEl.value = text;
-              inputEl.dispatchEvent(new Event('input')); 
-          }
-          appendErrorNote(FRIENDLY_ERROR_TEXT, text);
-          return;
-        }
-
-        history = attemptedHistory;
-        history.push({ role: "assistant", text: data.reply });
-        updateExportButtonsState();
-        const bubble = createEmptyAssistantBubble();
-        finalizeAssistantBubble(bubble, data.reply);
-        return;
-      }
-
-      // Live Stream SSE handling
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-      let rawReply = "";
-      let assistantBubble = null;
-      let streamFailed = false;
-
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          let corte;
-          while ((corte = buffer.indexOf("\n\n")) !== -1) {
-            const bloco = buffer.slice(0, corte);
-            buffer = buffer.slice(corte + 2);
-
-            const lines = bloco.split("\n");
-            const eventLine = lines.find(l => l.startsWith("event:"));
-            const dataLine = lines.find(l => l.startsWith("data:"));
-
-            if (eventLine && dataLine) {
-              const eventType = eventLine.slice(6).trim();
-              const dataStr = dataLine.slice(5).trim();
-              
-              let data = {};
-              try { data = JSON.parse(dataStr); } catch(e){}
-
-              if (eventType === "meta" || eventType === "delta") {
-                // Ao invés de destravar o input, apenas esconde o "Refletindo..."
-                removeTypingIndicator(); 
-                if (!assistantBubble) {
-                  assistantBubble = createEmptyAssistantBubble();
-                }
-              }
-
-              if (eventType === "delta") {
-                rawReply += (data.t || "");
-                assistantBubble.innerHTML = renderMarkdown(rawReply);
-                scrollToBottom();
-              } else if (eventType === "fail") {
-                streamFailed = true;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // Ignora se o erro foi pelo clique no botão Reiniciar (AbortError)
-        if (e.name === 'AbortError') return; 
-        streamFailed = true;
-      }
-
-      setInitialLoadingUI(false);
-      isProcessing = false;
-
-      // Se a conexão não gerou nada antes de cair ou falhar
-      if (!rawReply || streamFailed) {
-         if (assistantBubble) assistantBubble.remove();
-         userWrapper.remove();
-         if (forcedText === undefined) {
-            inputEl.value = text;
-            inputEl.dispatchEvent(new Event('input'));
-         }
-         appendErrorNote(FRIENDLY_NETWORK_ERROR_TEXT, text);
-         return;
-      }
-
-      history = attemptedHistory;
-      history.push({ role: "assistant", text: rawReply });
-      updateExportButtonsState();
-      finalizeAssistantBubble(assistantBubble, rawReply);
-      
-    } catch (err) {
-      if (err.name === 'AbortError') return; 
-      
-      setInitialLoadingUI(false);
-      isProcessing = false;
+    const falhar = (mensagem) => {
+      setLoading(false);
       userWrapper.remove();
       if (forcedText === undefined) {
         inputEl.value = text;
-        inputEl.dispatchEvent(new Event('input'));
+        inputEl.dispatchEvent(new Event("input"));
       }
-      appendErrorNote(FRIENDLY_NETWORK_ERROR_TEXT, text);
+      // Nunca mostramos o texto técnico do erro (geralmente em inglês) para a
+      // pessoa — apenas uma frase simples convidando a tentar de novo.
+      appendErrorNote(mensagem, text);
+    };
+
+    try {
+      // 1) Caminho principal: resposta ao vivo.
+      try {
+        const deuCerto = await streamReply(attemptedHistory, activeAbortController);
+        if (deuCerto) {
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // pessoa clicou em "Reiniciar"
+        // Streaming indisponível neste navegador/rede — segue para o plano B.
+      }
+
+      // 2) Plano B: pedido comum, esperando a resposta inteira.
+      try {
+        const res = await fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+          body: JSON.stringify({ messages: attemptedHistory, stream: false }),
+          signal: activeAbortController.signal,
+        });
+
+        let data;
+        try { data = await res.json(); } catch (e) { data = {}; }
+
+        setLoading(false);
+
+        if (!res.ok || !data.reply) {
+          falhar(FRIENDLY_ERROR_TEXT);
+          return;
+        }
+
+        commitAssistantReply(attemptedHistory, data.reply);
+        appendAssistantBubble(data.reply);
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+        falhar(FRIENDLY_NETWORK_ERROR_TEXT);
+      }
     } finally {
-       activeAbortController = null; 
+      // Libera a trava aconteça o que acontecer — sem isto, uma falha inesperada
+      // deixaria o site travado para sempre, sem aceitar novos envios.
+      isProcessing = false;
+      activeAbortController = null;
     }
   }
 
+  // ---- Exportar conversa ----
+
+  // Para o relatório (WhatsApp/PDF), não faz sentido repetir a lista de opções
+  // (1. Sim / 2. Não / 3. Dúvidas) — só a opção que a pessoa realmente escolheu.
+  // Esta função limpa a lista de opções de cada pergunta e troca a resposta
+  // numérica ("3") pelo texto da opção escolhida ("Dúvidas"), quando aplicável.
   function buildExportableHistory() {
     const result = [];
     let lastOptions = null;
@@ -1014,16 +1138,35 @@
     return result;
   }
 
+  function buildTranscriptPlainText() {
+    return buildExportableHistory()
+      .map((m) => {
+        const label = m.role === "assistant" ? "Conselheiro" : "Você";
+        return label + ":\n" + m.text;
+      })
+      .join("\n\n");
+  }
+
   function toWhatsAppFormatting(text) {
+    // Versiculos (linhas de citacao Markdown "> ...") viram linhas proprias em italico.
     let t = text.replace(/^>\s?(.*)$/gm, "_$1_");
-    t = t.replace(/\*\*(.+?)\*\*/g, "$1");
-    t = t.replace(/\*(.+?)\*/g, "_$1_");
-    t = t.replace(/(.+?)/g, "*$1*");
+    // Negrito e italico convertidos em UMA unica passada.
+    // Antes isto era feito em varias etapas usando um caractere invisivel de controle
+    // como marcador temporario. Esse caractere se PERDE ao copiar e colar o arquivo,
+    // e quando isso aconteceu a expressao virou /(.+?)/g, que envolvia CADA LETRA do
+    // texto em asteriscos e destruia o relatorio. Esta versao nao usa caractere
+    // invisivel nenhum, entao pode ser copiada e colada sem risco.
+    t = t.replace(/\*\*(.+?)\*\*|\*(.+?)\*/g, function (m, negrito, italico) {
+      return negrito !== undefined ? "*" + negrito + "*" : "_" + italico + "_";
+    });
     t = t.replace(/^#{1,6}\s*/gm, "");
     t = t.replace(/^-{3,}\s*$/gm, "");
     return t;
   }
 
+  // Para o WhatsApp, em vez da conversa inteira (que pode ficar longa demais e cortar),
+  // manda um resumo: a situação inicial, um resumo curto das respostas dadas ao longo do
+  // caminho, e a orientação final completa (o conteúdo mais importante para guardar).
   function buildWhatsAppReportText() {
     const exportable = buildExportableHistory();
     const firstUserMsg = exportable.find((m) => m.role === "user");
@@ -1050,12 +1193,15 @@
   }
 
   whatsappBtn.addEventListener("click", () => {
-    if (!history.length || isProcessing) return;
+    if (!history.length) return;
     const full = buildWhatsAppReportText();
     const encoded = encodeURIComponent(full);
     window.open("https://wa.me/?text=" + encoded, "_blank");
   });
 
+  // Gera o PDF escrevendo o texto diretamente (em vez de "tirar uma foto" da tela),
+  // que é o método confiável — a abordagem antiga (fotografar um HTML escondido)
+  // às vezes gerava um PDF em branco dependendo do navegador.
   function stripMarkdownForPdf(text) {
     return text
       .split(/\n+/)
@@ -1083,7 +1229,7 @@
   }
 
   pdfBtn.addEventListener("click", () => {
-    if (!history.length || isProcessing) return;
+    if (!history.length) return;
     if (typeof window.jspdf === "undefined") {
       appendErrorNote("Não foi possível gerar o PDF agora. Verifique sua conexão com a internet e tente novamente.");
       return;
@@ -1092,129 +1238,123 @@
     pdfBtn.disabled = true;
     pdfBtn.textContent = "⏳ Gerando PDF…";
 
-    setTimeout(() => {
-        try {
-          const { jsPDF } = window.jspdf;
-          const doc = new jsPDF({ unit: "mm", format: "a4" });
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const pageHeight = doc.internal.pageSize.getHeight();
-          const margin = 18;
-          const maxWidth = pageWidth - margin * 2;
-          let y = margin;
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 18;
+      const maxWidth = pageWidth - margin * 2;
+      let y = margin;
 
-          function ensureSpace(need) {
-            if (y + need > pageHeight - margin) {
-              doc.addPage();
-              y = margin;
-            }
-          }
-
-          function printParagraphs(text, opts) {
-            opts = opts || {};
-            const size = opts.size || 11;
-            const lineHeight = opts.lineHeight || 6;
-            const color = opts.color || [43, 36, 32];
-            const quoteColor = [122, 59, 46];
-            const paragraphs = stripMarkdownForPdf(text);
-            paragraphs.forEach((p) => {
-              const indent = p.quote ? 5 : 0;
-              if (p.quote) {
-                y += 1.5;
-                doc.setFont("times", "italic");
-                doc.setFontSize(size);
-                doc.setTextColor(quoteColor[0], quoteColor[1], quoteColor[2]);
-              } else {
-                doc.setFont("times", p.bold ? "bold" : "normal");
-                doc.setFontSize(p.bold ? size + 1 : size);
-                doc.setTextColor(color[0], color[1], color[2]);
-              }
-              const wrapped = doc.splitTextToSize(p.text, maxWidth - indent);
-              wrapped.forEach((w) => {
-                ensureSpace(lineHeight);
-                doc.text(w, margin + indent, y);
-                y += lineHeight;
-              });
-              y += p.quote ? 2.5 : 1.5;
-            });
-          }
-
-          // Título
-          doc.setFont("times", "bold");
-          doc.setFontSize(16);
-          doc.setTextColor(92, 44, 34);
-          doc.text("Registro de Aconselhamento Bíblico Cristocêntrico", margin, y);
-          y += 8;
-
-          // Data
-          doc.setFont("times", "normal");
-          doc.setFontSize(10);
-          doc.setTextColor(107, 95, 82);
-          doc.text(new Date().toLocaleDateString("pt-BR"), margin, y);
-          y += 10;
-
-          // Conversa
-          buildExportableHistory().forEach((m) => {
-            const label = m.role === "assistant" ? "CONSELHEIRO BÍBLICO" : "VOCÊ";
-            ensureSpace(8);
-            doc.setFont("times", "bold");
-            doc.setFontSize(9);
-            doc.setTextColor(122, 59, 46);
-            doc.text(label, margin, y);
-            y += 6;
-            printParagraphs(m.text, { size: 11, lineHeight: 6, color: [43, 36, 32] });
-            y += 4;
-          });
-
-          // Alerta de crise
-          const crisisLines = stripMarkdownForPdf("Atenção: " + CRISIS_ALERT_TEXT);
-          const crisisWrapped = [];
-          doc.setFont("times", "bold");
-          doc.setFontSize(10);
-          crisisLines.forEach((p) => {
-            doc.splitTextToSize(p.text, maxWidth - 12).forEach((w) => crisisWrapped.push(w));
-          });
-          const boxHeight = crisisWrapped.length * 5.5 + 10;
-          ensureSpace(boxHeight + 8);
-          doc.setFillColor(251, 234, 234);
-          doc.setDrawColor(230, 184, 184);
-          doc.roundedRect(margin - 4, y - 4, maxWidth + 8, boxHeight, 2, 2, "FD");
-          doc.setTextColor(122, 46, 46);
-          let cy = y + 3;
-          crisisWrapped.forEach((w) => {
-            doc.text(w, margin, cy);
-            cy += 5.5;
-          });
-          y += boxHeight + 10;
-
-          // Rodapé
-          ensureSpace(8);
-          doc.setFont("times", "normal");
-          doc.setFontSize(8.5);
-          doc.setTextColor(107, 95, 82);
-          const footerWidth = doc.getTextWidth(FOOTER_TEXT);
-          doc.text(FOOTER_TEXT, (pageWidth - footerWidth) / 2, y);
-
-          const filename = "aconselhamento-biblico-" + new Date().toISOString().slice(0, 10) + ".pdf";
-          doc.save(filename);
-        } catch (e) {
-          appendErrorNote("Não foi possível gerar o PDF agora. Tente novamente.");
-        } finally {
-          pdfBtn.disabled = false;
-          pdfBtn.textContent = originalLabel;
+      function ensureSpace(need) {
+        if (y + need > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
         }
-    }, 50);
+      }
+
+      function printParagraphs(text, opts) {
+        opts = opts || {};
+        const size = opts.size || 11;
+        const lineHeight = opts.lineHeight || 6;
+        const color = opts.color || [43, 36, 32];
+        const quoteColor = [122, 59, 46];
+        const paragraphs = stripMarkdownForPdf(text);
+        paragraphs.forEach((p) => {
+          const indent = p.quote ? 5 : 0;
+          if (p.quote) {
+            y += 1.5;
+            doc.setFont("times", "italic");
+            doc.setFontSize(size);
+            doc.setTextColor(quoteColor[0], quoteColor[1], quoteColor[2]);
+          } else {
+            doc.setFont("times", p.bold ? "bold" : "normal");
+            doc.setFontSize(p.bold ? size + 1 : size);
+            doc.setTextColor(color[0], color[1], color[2]);
+          }
+          const wrapped = doc.splitTextToSize(p.text, maxWidth - indent);
+          wrapped.forEach((w) => {
+            ensureSpace(lineHeight);
+            doc.text(w, margin + indent, y);
+            y += lineHeight;
+          });
+          y += p.quote ? 2.5 : 1.5;
+        });
+      }
+
+      // Título
+      doc.setFont("times", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(92, 44, 34);
+      doc.text("Registro de Aconselhamento Bíblico Cristocêntrico", margin, y);
+      y += 8;
+
+      // Data
+      doc.setFont("times", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(107, 95, 82);
+      doc.text(new Date().toLocaleDateString("pt-BR"), margin, y);
+      y += 10;
+
+      // Conversa
+      buildExportableHistory().forEach((m) => {
+        const label = m.role === "assistant" ? "CONSELHEIRO BÍBLICO" : "VOCÊ";
+        ensureSpace(8);
+        doc.setFont("times", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(122, 59, 46);
+        doc.text(label, margin, y);
+        y += 6;
+        printParagraphs(m.text, { size: 11, lineHeight: 6, color: [43, 36, 32] });
+        y += 4;
+      });
+
+      // Alerta de crise
+      const crisisLines = stripMarkdownForPdf("Atenção: " + CRISIS_ALERT_TEXT);
+      const crisisWrapped = [];
+      doc.setFont("times", "bold");
+      doc.setFontSize(10);
+      crisisLines.forEach((p) => {
+        doc.splitTextToSize(p.text, maxWidth - 12).forEach((w) => crisisWrapped.push(w));
+      });
+      const boxHeight = crisisWrapped.length * 5.5 + 10;
+      ensureSpace(boxHeight + 8);
+      doc.setFillColor(251, 234, 234);
+      doc.setDrawColor(230, 184, 184);
+      doc.roundedRect(margin - 4, y - 4, maxWidth + 8, boxHeight, 2, 2, "FD");
+      doc.setTextColor(122, 46, 46);
+      let cy = y + 3;
+      crisisWrapped.forEach((w) => {
+        doc.text(w, margin, cy);
+        cy += 5.5;
+      });
+      y += boxHeight + 10;
+
+      // Rodapé
+      ensureSpace(8);
+      doc.setFont("times", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(107, 95, 82);
+      const footerWidth = doc.getTextWidth(FOOTER_TEXT);
+      doc.text(FOOTER_TEXT, (pageWidth - footerWidth) / 2, y);
+
+      const filename = "aconselhamento-biblico-" + new Date().toISOString().slice(0, 10) + ".pdf";
+      doc.save(filename);
+    } catch (e) {
+      appendErrorNote("Não foi possível gerar o PDF agora. Tente novamente.");
+    } finally {
+      pdfBtn.disabled = false;
+      pdfBtn.textContent = originalLabel;
+    }
   });
 
   restartBtn.addEventListener("click", restartConversation);
-  
-  sendBtn.addEventListener("click", () => {
-    if (!sendBtn.disabled && !isProcessing) sendMessage();
-  });
-  
+  sendBtn.addEventListener("click", () => sendMessage());
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!sendBtn.disabled && !isProcessing) sendMessage();
+      if (!sendBtn.disabled) sendMessage();
     }
   });
 
