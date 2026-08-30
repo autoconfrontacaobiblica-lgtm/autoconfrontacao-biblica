@@ -843,40 +843,20 @@
 
   // Preenche uma bolha JÁ existente com o texto final e cuida do que vem depois dela
   // (botões de opção, ou o encerramento da conversa).
-  // A pessoa NUNCA pode ficar sem saber o que fazer. Quando uma resposta termina
-  // sem as opções numeradas — porque o texto foi cortado no limite de tamanho, ou
-  // simplesmente parou no meio — mostramos um aviso claro e um botão para pedir a
-  // resposta de novo, além de liberar a caixa de digitação.
-  function respostaParecerCortada(texto, motivoDoFim) {
-    if (motivoDoFim && motivoDoFim !== "STOP") return true; // o Google avisou que cortou
-    const fim = texto.trim().slice(-1);
-    return fim !== "" && ".!?\"'):]…".indexOf(fim) === -1;
-  }
-
-  function appendContinuarRow() {
-    const row = document.createElement("div");
-    row.className = "options-row";
-
-    const aviso = document.createElement("div");
-    aviso.className = "msg system-note";
-    aviso.textContent = "A resposta parece ter parado antes do fim.";
-    messagesEl.appendChild(aviso);
-
-    const btn = document.createElement("button");
-    btn.className = "option-btn";
-    btn.type = "button";
-    btn.textContent = "🔁 Pedir a resposta completa";
-    btn.addEventListener("click", () => {
-      if (isProcessing) return;
-      // Reenvia a última mensagem da pessoa para gerar a resposta de novo.
-      const ultima = [...history].reverse().find((m) => m.role === "user");
-      if (!ultima) return;
-      btn.disabled = true;
-      history = history.slice(0, history.length - 1); // tira a resposta incompleta
-      sendMessage(ultima.text);
-    });
-    row.appendChild(btn);
-    messagesEl.appendChild(row);
+  // O texto só é considerado interrompido quando o PRÓPRIO GOOGLE avisa que parou
+  // antes da hora. "STOP" (ou nenhum aviso) significa que terminou normalmente.
+  //
+  // A versão anterior também "adivinhava" pela pontuação final — se o texto não
+  // terminasse com ponto, ela declarava a resposta cortada. Isso disparava alarme
+  // falso o tempo todo (uma resposta que termina com as opções numeradas não acaba
+  // em ponto), enchendo a tela de avisos e desanimando quem estava sendo aconselhado.
+  // Essa adivinhação foi removida: agora só confiamos no aviso oficial.
+  // O Google sempre carimba o último pedaço com o motivo do término. Portanto:
+  //  - "STOP"            -> terminou de escrever normalmente;
+  //  - qualquer outro    -> parou antes da hora (limite de tamanho, filtro, etc.);
+  //  - NENHUM motivo     -> a conexão morreu antes do fim, então também está incompleto.
+  function textoFoiInterrompido(motivoDoFim) {
+    return motivoDoFim !== "STOP";
   }
 
   function renderAssistantInto(div, rawText, motivoDoFim) {
@@ -903,10 +883,8 @@
         appendOptionsRow(options);
         setInputRowVisible(false);
       } else {
-        // Sem opções: a pessoa pode digitar livremente. E se o texto parece ter
-        // sido cortado, oferecemos também o botão para pedir a resposta completa.
+        // Sem opções numeradas: a pessoa responde escrevendo livremente.
         setInputRowVisible(true);
-        if (respostaParecerCortada(text, motivoDoFim)) appendContinuarRow();
       }
     }
   }
@@ -1109,14 +1087,23 @@
           let obj;
           try { obj = JSON.parse(cru); } catch (e) { continue; }
 
-          if (obj.finishReason) motivoDoFim = obj.finishReason;
+          // Agora lemos o formato ORIGINAL do Google (o Worker repassa direto,
+          // sem remontar nada): o texto novo vem em candidates[0].content.parts,
+          // e o motivo do término em candidates[0].finishReason.
+          const cand = obj && obj.candidates && obj.candidates[0];
+          if (cand && cand.finishReason) motivoDoFim = cand.finishReason;
 
-          if (typeof obj.t === "string" && obj.t) {
+          const pedaco =
+            (cand && cand.content && cand.content.parts
+              ? cand.content.parts.map((pt) => pt.text || "").join("")
+              : "") || "";
+
+          if (pedaco) {
             if (!bubble) {
               setLoading(false);
               bubble = beginAssistantStream();
             }
-            full += obj.t;
+            full += pedaco;
             // Redesenha no máximo a cada ~90ms: suficiente para parecer contínuo,
             // sem gastar bateria/processamento redesenhando a cada letra.
             if (!renderTimer) {
@@ -1137,11 +1124,12 @@
       return false;
     }
 
-    // Se a conexão parou no meio, o texto recebido está incompleto. Guardar uma
-    // resposta pela metade no histórico bagunçaria as próximas etapas da conversa,
-    // então descartamos esse pedaço e devolvemos "false": quem chamou refaz o
-    // pedido pelo caminho comum, que espera a resposta inteira e a entrega completa.
-    if (travou) {
+    // Texto incompleto — porque a conexão parou, ou porque o Google interrompeu a
+    // geração no meio. Em vez de mostrar um aviso desanimador e empurrar o trabalho
+    // para a pessoa, descartamos silenciosamente e devolvemos "false": quem chamou
+    // refaz o pedido sozinho pelo caminho comum. Ela só vê a resposta boa chegar,
+    // um pouco depois — sem nunca saber que houve uma segunda tentativa.
+    if (travou || textoFoiInterrompido(motivoDoFim)) {
       if (bubble) bubble.remove();
       setLoading(true);
       return false;
