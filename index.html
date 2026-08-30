@@ -371,6 +371,44 @@
   }
   .option-btn:hover:not(:disabled) { background: var(--user-bubble); }
   .option-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* Opções de resposta com contexto (6 a 10 palavras): cada uma ocupa a largura
+     toda, em sua própria linha. Em formato de pílula lado a lado, frases desse
+     tamanho ficariam espremidas e difíceis de tocar no celular. */
+  .options-row--escolhas {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .options-row--escolhas .option-btn {
+    width: 100%;
+    text-align: left;
+    border-radius: 12px;
+    padding: 11px 14px;
+    line-height: 1.35;
+    border-width: 1.5px;
+  }
+  /* Tons pastéis por posição, para a escolha ser reconhecida de relance. */
+  .option-btn.opcao-1 { background: #e9f5ea; border-color: #a9d3ad; color: #2f6236; }
+  .option-btn.opcao-1:hover:not(:disabled) { background: #dcefde; }
+  .option-btn.opcao-2 { background: #e8f0f9; border-color: #a6c6e5; color: #2b5580; }
+  .option-btn.opcao-2:hover:not(:disabled) { background: #dae7f5; }
+  .option-btn.opcao-3 { background: #fdeee1; border-color: #efc59b; color: #8a4f1f; }
+  .option-btn.opcao-3:hover:not(:disabled) { background: #fae3cf; }
+  .option-btn.opcao-4 { background: #fdf6db; border-color: #e8d489; color: #766014; }
+  .option-btn.opcao-4:hover:not(:disabled) { background: #faefc7; }
+  /* "Voltar e mudar resposta anterior" continua neutro: não é uma das escolhas. */
+  .option-btn.opcao-voltar {
+    background: var(--bg-panel);
+    border-color: var(--border);
+    color: var(--ink-soft);
+    font-size: 0.84rem;
+    text-align: center;
+  }
+  .option-btn.opcao-voltar:hover:not(:disabled) { background: var(--user-bubble); }
   #input-row {
     display: flex;
     gap: 10px;
@@ -782,10 +820,11 @@
 
   function appendOptionsRow(options) {
     const row = document.createElement("div");
-    row.className = "options-row";
-    options.forEach((opt) => {
+    row.className = "options-row options-row--escolhas";
+    options.forEach((opt, i) => {
       const btn = document.createElement("button");
-      btn.className = "option-btn";
+      // A cor segue a POSIÇÃO da opção (1ª verde, 2ª azul, 3ª laranja, 4ª amarela).
+      btn.className = "option-btn opcao-" + Math.min(i + 1, 4);
       btn.type = "button";
       btn.textContent = opt.num + ". " + opt.label;
       btn.addEventListener("click", () => {
@@ -800,7 +839,7 @@
 
     // Opção extra: voltar e mudar a resposta que levou a esta pergunta.
     const backBtn = document.createElement("button");
-    backBtn.className = "option-btn";
+    backBtn.className = "option-btn opcao-voltar";
     backBtn.type = "button";
     backBtn.textContent = "↩️ Voltar e mudar resposta anterior";
     backBtn.addEventListener("click", () => {
