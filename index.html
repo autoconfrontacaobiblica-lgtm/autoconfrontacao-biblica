@@ -251,6 +251,17 @@
   .msg.assistant ul, .msg.assistant ol { margin: 6px 0; padding-left: 22px; }
   .msg.assistant li { margin-bottom: 4px; }
   .msg.assistant hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .msg.assistant blockquote {
+    margin: 10px 0;
+    padding: 8px 14px;
+    border-left: 3px solid var(--accent);
+    background: var(--user-bubble);
+    border-radius: 0 8px 8px 0;
+    font-style: italic;
+    color: var(--accent-dark);
+  }
+  .msg.assistant blockquote p { margin: 0; }
+  .msg.assistant blockquote + blockquote { margin-top: -4px; }
   .msg.error {
     align-self: center;
     background: #fbeaea;
@@ -829,7 +840,9 @@
   }
 
   function toWhatsAppFormatting(text) {
-    let t = text.replace(/\*\*(.+?)\*\*/g, "$1");
+    // Versiculos (linhas de citacao Markdown "> ...") viram linhas proprias em italico.
+    let t = text.replace(/^>\s?(.*)$/gm, "_$1_");
+    t = t.replace(/\*\*(.+?)\*\*/g, "$1");
     t = t.replace(/\*(.+?)\*/g, "_$1_");
     t = t.replace(/(.+?)/g, "*$1*");
     t = t.replace(/^#{1,6}\s*/gm, "");
@@ -882,7 +895,12 @@
       .filter((line) => line.length > 0)
       .map((line) => {
         let bold = false;
+        let quote = false;
         let content = line;
+        if (/^>\s?/.test(content)) {
+          quote = true;
+          content = content.replace(/^>\s?/, "");
+        }
         if (/^#{1,6}\s*/.test(content)) {
           bold = true;
           content = content.replace(/^#{1,6}\s*/, "");
@@ -891,7 +909,7 @@
         content = content.replace(/\*(.+?)\*/g, "$1");
         content = content.replace(/^-{3,}$/, "");
         content = content.replace(/^[-*]\s+/, "• ");
-        return { text: content, bold };
+        return { text: content, bold, quote };
       })
       .filter((l) => l.text.length > 0);
   }
@@ -927,18 +945,27 @@
         const size = opts.size || 11;
         const lineHeight = opts.lineHeight || 6;
         const color = opts.color || [43, 36, 32];
+        const quoteColor = [122, 59, 46];
         const paragraphs = stripMarkdownForPdf(text);
         paragraphs.forEach((p) => {
-          doc.setFont("times", p.bold ? "bold" : "normal");
-          doc.setFontSize(p.bold ? size + 1 : size);
-          doc.setTextColor(color[0], color[1], color[2]);
-          const wrapped = doc.splitTextToSize(p.text, maxWidth);
+          const indent = p.quote ? 5 : 0;
+          if (p.quote) {
+            y += 1.5;
+            doc.setFont("times", "italic");
+            doc.setFontSize(size);
+            doc.setTextColor(quoteColor[0], quoteColor[1], quoteColor[2]);
+          } else {
+            doc.setFont("times", p.bold ? "bold" : "normal");
+            doc.setFontSize(p.bold ? size + 1 : size);
+            doc.setTextColor(color[0], color[1], color[2]);
+          }
+          const wrapped = doc.splitTextToSize(p.text, maxWidth - indent);
           wrapped.forEach((w) => {
             ensureSpace(lineHeight);
-            doc.text(w, margin, y);
+            doc.text(w, margin + indent, y);
             y += lineHeight;
           });
-          y += 1.5;
+          y += p.quote ? 2.5 : 1.5;
         });
       }
 
