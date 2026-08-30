@@ -278,6 +278,22 @@
   }
   .msg.assistant blockquote p { margin: 0; }
   .msg.assistant blockquote + blockquote { margin-top: -4px; }
+  /* Cursor piscando enquanto a resposta está sendo escrita ao vivo, para deixar
+     claro que o texto ainda está chegando e não acabou. */
+  .msg.assistant.streaming::after {
+    content: "";
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: caret-blink 1s steps(1) infinite;
+  }
+  @keyframes caret-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
   .msg.error {
     align-self: center;
     background: #fbeaea;
@@ -516,6 +532,10 @@
   // Frases que se alternam durante a espera, para a pessoa sentir que algo está
   // de fato acontecendo (em vez de uma única palavra estática por até 10-15s).
   const LOADING_PHRASES = ["Refletindo…", "Buscando as Escrituras…", "Preparando uma resposta cuidadosa…"];
+  // Tempo máximo esperando o PRIMEIRO pedaço de texto aparecer. Como agora o texto
+  // chega ao vivo, esse primeiro pedaço costuma vir em 1 a 2 segundos; se passar
+  // disso, algo está errado e partimos para o plano B em vez de deixar a pessoa parada.
+  const FIRST_CHUNK_TIMEOUT_MS = 20000;
   // ============================
 
   const messagesEl = document.getElementById("messages");
@@ -754,9 +774,9 @@
     messagesEl.appendChild(row);
   }
 
-  function appendAssistantBubble(rawText) {
-    clearWelcomeNote();
-
+  // Preenche uma bolha JÁ existente com o texto final e cuida do que vem depois dela
+  // (botões de opção, ou o encerramento da conversa).
+  function renderAssistantInto(div, rawText) {
     let text = rawText;
     let isClosing = false;
     if (text.includes(CLOSING_MARKER)) {
@@ -764,12 +784,8 @@
       text = text.split(CLOSING_MARKER).join("").trim();
     }
 
-    const div = document.createElement("div");
-    div.className = "msg assistant";
-
     if (isClosing) {
       div.innerHTML = renderMarkdown(text);
-      messagesEl.appendChild(div);
       appendClosingRow();
       inputEl.disabled = true;
       sendBtn.disabled = true;
@@ -777,7 +793,6 @@
     } else {
       const { body, options } = extractOptions(text);
       div.innerHTML = renderMarkdown(body);
-      messagesEl.appendChild(div);
       if (options) {
         appendOptionsRow(options);
         setInputRowVisible(false);
@@ -785,8 +800,61 @@
         setInputRowVisible(true);
       }
     }
+  }
 
+  // Caminho antigo (resposta inteira de uma vez) — continua sendo usado pelo plano B.
+  function appendAssistantBubble(rawText) {
+    clearWelcomeNote();
+    const div = document.createElement("div");
+    div.className = "msg assistant";
+    messagesEl.appendChild(div);
+    renderAssistantInto(div, rawText);
     scrollToStartOf(div);
+  }
+
+  // ---- Resposta ao vivo (o texto vai aparecendo enquanto é escrito) ----
+
+  // Enquanto a resposta chega, se a PESSOA rolar a tela por conta própria (dedo ou
+  // rodinha do mouse), respeitamos onde ela parou e não puxamos a tela de volta.
+  let userScrolledDuringStream = false;
+  function markUserScroll() { userScrolledDuringStream = true; }
+  function watchUserScroll(on) {
+    const alvos = [window, messagesEl];
+    const eventos = ["wheel", "touchmove"];
+    alvos.forEach((a) =>
+      eventos.forEach((e) =>
+        on ? a.addEventListener(e, markUserScroll, { passive: true })
+           : a.removeEventListener(e, markUserScroll)
+      )
+    );
+  }
+
+  // Cria a bolha vazia no momento em que o primeiro pedaço de texto chega, e já
+  // posiciona o início dela no topo da tela para a pessoa começar a ler dali.
+  // O "min-height" temporário reserva uma tela inteira de espaço: sem isso, não há
+  // como rolar o início da bolha até o topo enquanto ela ainda está quase vazia.
+  function beginAssistantStream() {
+    clearWelcomeNote();
+    const div = document.createElement("div");
+    div.className = "msg assistant streaming";
+    const embedded = document.documentElement.classList.contains("is-embedded");
+    const espaco = embedded ? window.innerHeight : messagesEl.clientHeight;
+    div.style.minHeight = Math.max(200, espaco) + "px";
+    messagesEl.appendChild(div);
+    userScrolledDuringStream = false;
+    watchUserScroll(true);
+    scrollToStartOf(div);
+    return div;
+  }
+
+  function finalizeAssistantStream(div, fullText) {
+    watchUserScroll(false);
+    div.classList.remove("streaming");
+    div.style.minHeight = "";
+    renderAssistantInto(div, fullText);
+    // Reposiciona o início da resposta no topo — mas só se a pessoa não tiver
+    // rolado a tela sozinha enquanto lia, para não arrancá-la de onde estava.
+    if (!userScrolledDuringStream) scrollToStartOf(div);
   }
 
   let loadingPhraseTimer = null;
@@ -840,6 +908,98 @@
     inputEl.focus();
   }
 
+  function commitAssistantReply(attemptedHistory, replyText) {
+    history = attemptedHistory;
+    history.push({ role: "assistant", text: replyText });
+    updateExportButtonsState();
+  }
+
+  // Tenta o modo ao vivo. Devolve true se conseguiu mostrar algum texto para a
+  // pessoa (mesmo que a conexão tenha caído no meio — nesse caso aproveitamos o
+  // que já chegou, em vez de jogar fora). Devolve false se não veio nada, e aí
+  // quem chamou parte para o plano B.
+  async function streamReply(attemptedHistory) {
+    const controller = new AbortController();
+
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+      body: JSON.stringify({ messages: attemptedHistory, stream: true }),
+      signal: controller.signal,
+    });
+
+    const tipo = res.headers.get("Content-Type") || "";
+    if (!res.ok || !res.body || tipo.indexOf("text/event-stream") === -1) return false;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let full = "";
+    let bubble = null;
+    let renderTimer = null;
+
+    // Se o primeiro pedaço não chegar a tempo, corta e parte para o plano B.
+    let firstChunkTimer = setTimeout(() => {
+      try { controller.abort(); } catch (e) {}
+    }, FIRST_CHUNK_TIMEOUT_MS);
+
+    const pintar = () => {
+      if (bubble) bubble.innerHTML = renderMarkdown(full.split(CLOSING_MARKER).join(""));
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let corte;
+        while ((corte = buffer.indexOf("\n\n")) !== -1) {
+          const bloco = buffer.slice(0, corte);
+          buffer = buffer.slice(corte + 2);
+
+          const linha = bloco.split("\n").find((l) => l.startsWith("data:"));
+          if (!linha) continue;
+          const cru = linha.slice(5).trim();
+          if (!cru) continue;
+
+          let obj;
+          try { obj = JSON.parse(cru); } catch (e) { continue; }
+
+          if (typeof obj.t === "string" && obj.t) {
+            if (!bubble) {
+              clearTimeout(firstChunkTimer);
+              firstChunkTimer = null;
+              setLoading(false);
+              bubble = beginAssistantStream();
+            }
+            full += obj.t;
+            // Redesenha no máximo a cada ~90ms: suficiente para parecer contínuo,
+            // sem gastar bateria/processamento redesenhando a cada letra.
+            if (!renderTimer) {
+              renderTimer = setTimeout(() => { renderTimer = null; pintar(); }, 90);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Conexão interrompida: seguimos com o que já tiver chegado.
+    } finally {
+      if (firstChunkTimer) clearTimeout(firstChunkTimer);
+      if (renderTimer) clearTimeout(renderTimer);
+    }
+
+    if (!full.trim()) {
+      if (bubble) bubble.remove();
+      return false;
+    }
+
+    commitAssistantReply(attemptedHistory, full);
+    finalizeAssistantStream(bubble, full);
+    return true;
+  }
+
   async function sendMessage(forcedText) {
     const text = (forcedText !== undefined ? forcedText : inputEl.value).trim();
     if (!text) return;
@@ -851,43 +1011,48 @@
 
     const attemptedHistory = [...history, { role: "user", text }];
 
+    const falhar = (mensagem) => {
+      setLoading(false);
+      userWrapper.remove();
+      if (forcedText === undefined) inputEl.value = text;
+      // Nunca mostramos o texto técnico do erro (geralmente em inglês) para a
+      // pessoa — apenas uma frase simples convidando a tentar de novo.
+      appendErrorNote(mensagem, text);
+    };
+
+    // 1) Caminho principal: resposta ao vivo.
+    try {
+      const deuCerto = await streamReply(attemptedHistory);
+      if (deuCerto) {
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
+      // Streaming indisponível neste navegador/rede — segue para o plano B.
+    }
+
+    // 2) Plano B: pedido comum, esperando a resposta inteira.
     try {
       const res = await fetch(WORKER_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-App-Secret": APP_SECRET,
-        },
-        body: JSON.stringify({ messages: attemptedHistory }),
+        headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+        body: JSON.stringify({ messages: attemptedHistory, stream: false }),
       });
 
       let data;
-      try {
-        data = await res.json();
-      } catch (e) {
-        data = { error: "resposta inesperada" };
-      }
+      try { data = await res.json(); } catch (e) { data = {}; }
 
       setLoading(false);
 
       if (!res.ok || !data.reply) {
-        // Nunca mostramos data.error (texto técnico, geralmente em inglês) para a
-        // pessoa — apenas uma mensagem simples convidando a tentar de novo.
-        userWrapper.remove();
-        if (forcedText === undefined) inputEl.value = text;
-        appendErrorNote(FRIENDLY_ERROR_TEXT, text);
+        falhar(FRIENDLY_ERROR_TEXT);
         return;
       }
 
-      history = attemptedHistory;
-      history.push({ role: "assistant", text: data.reply });
-      updateExportButtonsState();
+      commitAssistantReply(attemptedHistory, data.reply);
       appendAssistantBubble(data.reply);
     } catch (err) {
-      setLoading(false);
-      userWrapper.remove();
-      if (forcedText === undefined) inputEl.value = text;
-      appendErrorNote(FRIENDLY_NETWORK_ERROR_TEXT, text);
+      falhar(FRIENDLY_NETWORK_ERROR_TEXT);
     }
   }
 
