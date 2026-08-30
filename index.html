@@ -4,6 +4,1151 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Aconselhamento Bíblico Cristocêntrico</title>
+
+<!-- Preconnect para acelerar o DNS das bibliotecas externas (Alta performance) -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+
+<script>
+  // Detecta cedo se a página está incorporada (embed)
+  try {
+    if (window.self !== window.top) {
+      document.documentElement.classList.add("is-embedded");
+    }
+  } catch (e) {
+    document.documentElement.classList.add("is-embedded");
+  }
+</script>
+
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" />
+<link rel="apple-touch-icon" href="logo.png" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Aconselhamento Bíblico Cristocêntrico" />
+<meta property="og:description" content="“Habite, ricamente, em vós a palavra de Cristo” — Colossenses 3:16" />
+<meta property="og:image" content="https://autoconfrontacaobiblica-lgtm.github.io/autoconfrontacao-biblica/og-image.png?v=2" />
+<meta property="og:url" content="https://autoconfrontacaobiblica-lgtm.github.io/autoconfrontacao-biblica/" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- Scripts com 'defer' para não bloquear a renderização da tela -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+
+<style>
+  :root {
+    --bg: #f6f1e7;
+    --bg-panel: #fffdf8;
+    --ink: #2b2420;
+    --ink-soft: #6b5f52;
+    --accent: #7a3b2e;
+    --accent-dark: #5c2c22;
+    --user-bubble: #eadfc9;
+    --bot-bubble: #ffffff;
+    --border: #e2d6bd;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Georgia", "Iowan Old Style", serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  header {
+    width: 100%;
+    max-width: 760px;
+    padding: 16px 20px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+  }
+  #header-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  #header-logo {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: var(--accent-dark);
+    letter-spacing: 0.02em;
+  }
+  header p {
+    margin: 6px 0 0;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+  header p.hidden {
+    display: none;
+  }
+  #input-label {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 6px 20px 4px;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 1.15rem;
+    text-align: center;
+    line-height: 1.4;
+  }
+  #input-label span {
+    color: var(--accent);
+    font-weight: bold;
+  }
+  #input-label.hidden {
+    display: none;
+  }
+  #site-footer {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    opacity: 0.75;
+    margin: 0;
+    padding: 6px 0 10px;
+  }
+  
+  .welcome-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    margin: auto;
+    padding: 20px 10px;
+  }
+  .logo-frame {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-frame::before {
+    content: "";
+    position: absolute;
+    inset: -18px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(247, 200, 119, 0.65) 0%, rgba(247, 200, 119, 0.28) 45%, transparent 72%);
+    animation: logo-glow 3s ease-in-out infinite;
+    z-index: 0;
+  }
+  .welcome-hero img {
+    position: relative;
+    z-index: 1;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+  }
+  @keyframes logo-glow {
+    0%, 100% { transform: scale(0.8); opacity: 0.6; }
+    50% { transform: scale(2); opacity: 1; }
+  }
+  .welcome-hero h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--accent-dark);
+    letter-spacing: 0.02em;
+  }
+  .verse-card {
+    background: var(--user-bubble);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 22px;
+    max-width: 480px;
+  }
+  .verse-card p {
+    margin: 0;
+    font-style: italic;
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 0.98rem;
+  }
+  .verse-card span {
+    display: block;
+    margin-top: 10px;
+    font-style: normal;
+    font-weight: bold;
+    color: var(--accent-dark);
+    font-size: 0.86rem;
+  }
+  
+  #chat-container {
+    width: 100%;
+    max-width: 760px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin: 10px 16px 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 18px rgba(90, 60, 30, 0.08);
+  }
+  #toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: #fbf6ea;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+  .toolbar-btn {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  .toolbar-btn:hover:not(:disabled) { background: var(--user-bubble); }
+  .toolbar-btn:disabled { opacity: 0.4; cursor: default; }
+  
+  #messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+  }
+  .msg {
+    max-width: 84%;
+    padding: 12px 16px;
+    border-radius: 14px;
+    line-height: 1.55;
+    font-size: 0.98rem;
+  }
+  .msg.user {
+    background: var(--user-bubble);
+    border-bottom-right-radius: 4px;
+    white-space: pre-wrap;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.assistant p { margin: 0 0 10px; }
+  .msg.assistant p:last-child { margin-bottom: 0; }
+  .msg.assistant h1, .msg.assistant h2, .msg.assistant h3 {
+    color: var(--accent-dark);
+    margin: 14px 0 8px;
+    font-size: 1.05rem;
+  }
+  .msg.assistant h1:first-child, .msg.assistant h2:first-child, .msg.assistant h3:first-child { margin-top: 0; }
+  .msg.assistant strong { color: var(--accent-dark); }
+  .msg.assistant em { color: var(--ink); }
+  .msg.assistant ul, .msg.assistant ol { margin: 6px 0; padding-left: 22px; }
+  .msg.assistant li { margin-bottom: 4px; }
+  .msg.assistant hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .msg.assistant blockquote {
+    margin: 10px 0;
+    padding: 8px 14px;
+    border-left: 3px solid var(--accent);
+    background: var(--user-bubble);
+    border-radius: 0 8px 8px 0;
+    font-style: italic;
+    color: var(--accent-dark);
+  }
+  .msg.assistant blockquote p { margin: 0; }
+  .msg.assistant blockquote + blockquote { margin-top: -4px; }
+  
+  .msg.error {
+    align-self: center;
+    background: #fbeaea;
+    border: 1px solid #e6b8b8;
+    color: #7a2e2e;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  .msg.system-note {
+    align-self: center;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 0.85rem;
+    background: none;
+    padding: 4px;
+    text-align: center;
+  }
+  .user-turn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    align-self: flex-end;
+    max-width: 84%;
+    gap: 3px;
+  }
+  .user-turn .msg.user { max-width: 100%; }
+  .edit-link {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0 4px;
+    opacity: 0.65;
+    transition: opacity 0.2s;
+  }
+  .edit-link:hover { opacity: 1; text-decoration: underline; }
+  
+  .options-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-self: flex-start;
+    max-width: 84%;
+    margin-top: -6px;
+  }
+  .option-btn {
+    background: var(--bg-panel);
+    border: 1.5px solid var(--accent);
+    color: var(--accent-dark);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  .option-btn:hover:not(:disabled) { background: var(--user-bubble); }
+  .option-btn:disabled { opacity: 0.4; cursor: default; }
+  
+  #input-row {
+    display: flex;
+    gap: 10px;
+    padding: 14px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  @property --glow-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+  .input-glow-wrap {
+    position: relative;
+    flex: 1;
+    border-radius: 12px;
+    padding: 3px;
+    background: conic-gradient(
+      from var(--glow-angle),
+      var(--accent) 0deg,
+      var(--accent) 200deg,
+      #f7c877 250deg,
+      #fff2cf 290deg,
+      #ffffff 300deg,
+      #fff2cf 310deg,
+      #f7c877 350deg,
+      var(--accent) 360deg
+    );
+    animation: glow-spin 3s linear infinite, glow-pulse 2s ease-in-out infinite;
+  }
+  @keyframes glow-spin { to { --glow-angle: 360deg; } }
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 10px 1px rgba(240, 180, 90, 0.4); }
+    50% { box-shadow: 0 0 26px 6px rgba(240, 180, 90, 0.85); }
+  }
+  
+  #input-row textarea {
+    display: block;
+    flex: 1;
+    width: 100%;
+    resize: none;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.98rem;
+    min-height: 44px;
+    max-height: 140px;
+    background: #fffefb;
+    color: var(--ink);
+    overflow-y: hidden; /* O JS controla a barra de rolagem */
+  }
+  #input-row textarea:focus { outline: 2px solid var(--accent); }
+  #input-row textarea:disabled { background: #f1ede4; color: var(--ink-soft); }
+  
+  #send-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0 20px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  #send-btn:hover:not(:disabled) { background: var(--accent-dark); }
+  #send-btn:disabled { opacity: 0.5; cursor: default; }
+  
+  .typing {
+    align-self: flex-start;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 0.9rem;
+    padding: 4px 4px;
+  }
+
+  @media (max-width: 480px) {
+    header { padding: 12px 14px 8px; }
+    header h1 { font-size: 1.2rem; }
+    #header-logo { width: 26px; height: 26px; }
+    header p { font-size: 0.82rem; }
+    .welcome-hero img { width: 64px; height: 64px; }
+    .logo-frame { width: 64px; height: 64px; }
+    .logo-frame::before { inset: -14px; }
+    .welcome-hero h2 { font-size: 1.1rem; }
+    .verse-card { padding: 12px 16px; }
+    .verse-card p { font-size: 0.9rem; }
+    #input-label { font-size: 1rem; padding: 0 14px; }
+    #chat-container { margin: 6px 8px 8px; border-radius: 10px; }
+    #messages { padding: 14px 12px; gap: 10px; }
+    .msg { max-width: 92%; font-size: 0.94rem; padding: 10px 13px; }
+    .user-turn, .options-row { max-width: 92%; }
+    .toolbar-btn { font-size: 0.76rem; padding: 6px 10px; }
+    #input-row { padding: 10px; }
+  }
+
+  html.is-embedded, html.is-embedded body { height: auto; }
+  html.is-embedded body { display: block; }
+  html.is-embedded header { position: static; }
+  html.is-embedded #chat-container {
+    flex: none;
+    height: auto;
+    min-height: 420px;
+    overflow: visible;
+    border-radius: 14px 14px 0 0;
+  }
+  html.is-embedded #messages {
+    flex: none;
+    overflow-y: visible;
+    min-height: 200px;
+  }
+  html.is-embedded #input-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    box-shadow: 0 -2px 10px rgba(90, 60, 30, 0.06);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div id="header-title-row">
+    <img id="header-logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" alt="Logotipo Aconselhamento Bíblico Cristocêntrico" />
+    <h1>Aconselhamento Bíblico Cristocêntrico</h1>
+  </div>
+</header>
+
+<div id="chat-container">
+  <div id="messages"></div>
+  <p id="input-label">Escreva sua situação e você será ajudado(a) por meio do aconselhamento bíblico cristocêntrico <span aria-hidden="true">↓</span></p>
+  <div id="input-row">
+    <div class="input-glow-wrap">
+      <textarea id="user-input" placeholder="Escreva aqui o que você está enfrentando…" rows="1"></textarea>
+    </div>
+    <button id="send-btn">Enviar</button>
+  </div>
+  <div id="toolbar">
+    <button id="restart-btn" class="toolbar-btn" title="Apagar tudo e começar uma nova conversa">🔄 Reiniciar</button>
+    <button id="whatsapp-btn" class="toolbar-btn" title="Enviar esta conversa pelo WhatsApp" disabled>🟢 Enviar por WhatsApp</button>
+    <button id="pdf-btn" class="toolbar-btn" title="Salvar esta conversa como PDF" disabled>🖨️ Salvar em PDF</button>
+  </div>
+  <p id="site-footer">© Autoconfrontação Bíblica · 2026</p>
+</div>
+
+<script>
+  const WORKER_URL = "https://aconselhamento-biblico.lana-lopes-psicopedagoga.workers.dev";
+  const APP_SECRET = "biblico2026";
+  const CLOSING_MARKER = "[CONVERSA_CONCLUIDA]";
+  const CRISIS_ALERT_TEXT = "Se você estiver passando por uma crise ou sofrimento intenso, não enfrente isso sozinho(a): compartilhe sua dor com pessoas próximas, um pastor ou uma igreja genuinamente cristã, e busque também canais oficiais de apoio — CVV 188 (ligação gratuita, 24h) ou suporte médico/terapêutico profissional.";
+  const FOOTER_TEXT = "© Autoconfrontação Bíblica · 2026";
+  const FRIENDLY_ERROR_TEXT = "Não deu para concluir agora. Isso costuma ser passageiro — toque em \"Tentar novamente\" em alguns segundos.";
+  const FRIENDLY_NETWORK_ERROR_TEXT = "Não foi possível conectar agora. Verifique sua internet e toque em \"Tentar novamente\".";
+  const LOADING_PHRASES = ["Refletindo…", "Buscando as Escrituras…", "Preparando uma resposta cuidadosa…"];
+
+  const messagesEl = document.getElementById("messages");
+  const inputRowEl = document.getElementById("input-row");
+  const inputEl = document.getElementById("user-input");
+  const sendBtn = document.getElementById("send-btn");
+  const inputLabelEl = document.getElementById("input-label");
+  const restartBtn = document.getElementById("restart-btn");
+  const whatsappBtn = document.getElementById("whatsapp-btn");
+  const pdfBtn = document.getElementById("pdf-btn");
+
+  let history = [];
+  let isProcessing = false; // Trava contra multi-cliques
+  let activeAbortController = null; // Permite cancelar requisições em andamento
+
+  const LOGO_DATA_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==";
+
+  // Auto-resize dinâmico do textarea
+  inputEl.addEventListener('input', function() {
+    this.style.height = '44px'; // Reseta para calcular corretamente
+    const scrollHeight = this.scrollHeight;
+    // O CSS dita o min-height e max-height reais, aqui ajudamos apenas o fluir visual
+    if(scrollHeight > 44) {
+      this.style.height = scrollHeight + 'px';
+    }
+    if (scrollHeight >= 140) {
+      this.style.overflowY = 'auto'; // Mostra scroll apenas se atingir o máximo
+    } else {
+      this.style.overflowY = 'hidden';
+    }
+  });
+
+  function resetInputSize() {
+    inputEl.style.height = '44px';
+    inputEl.style.overflowY = 'hidden';
+  }
+
+  function renderWelcome() {
+    messagesEl.innerHTML = "";
+    const hero = document.createElement("div");
+    hero.className = "welcome-hero";
+    hero.innerHTML =
+      '<div class="logo-frame"><img src="' + LOGO_DATA_URI + '" alt="Logotipo Aconselhamento Bíblico Cristocêntrico" /></div>' +
+      "<h2>Aconselhamento Bíblico Cristocêntrico</h2>" +
+      '<div class="verse-card"><p>“Habite, ricamente, em vós a palavra de Cristo; instruí-vos e aconselhai-vos mutuamente em toda a sabedoria, louvando a Deus, com salmos, e hinos, e cânticos espirituais, com gratidão, em vosso coração.”<span>Colossenses 3:16</span></p></div>';
+    messagesEl.appendChild(hero);
+    inputLabelEl.classList.remove("hidden");
+  }
+
+  function clearWelcomeNote() {
+    const hero = messagesEl.querySelector(".welcome-hero");
+    if (hero) hero.remove();
+  }
+
+  function scrollToBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function scrollToStartOf(el) {
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function setInputRowVisible(visible) {
+    inputRowEl.style.display = visible ? "flex" : "none";
+  }
+
+  function truncateFromInclusive(node) {
+    let el = node;
+    while (el) {
+      const next = el.nextSibling;
+      el.remove();
+      el = next;
+    }
+  }
+
+  function appendUserBubble(text, historyIndexBefore) {
+    clearWelcomeNote();
+    inputLabelEl.classList.add("hidden");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "user-turn";
+
+    const div = document.createElement("div");
+    div.className = "msg user";
+    div.textContent = text;
+    wrapper.appendChild(div);
+
+    const editLink = document.createElement("button");
+    editLink.className = "edit-link";
+    editLink.type = "button";
+    editLink.textContent = "✏️ voltar e mudar esta resposta";
+    editLink.addEventListener("click", () => {
+      if (isProcessing) return; // Bloqueia edição enquanto aguarda resposta
+
+      truncateFromInclusive(wrapper);
+      history = history.slice(0, historyIndexBefore);
+
+      const lastChild = messagesEl.lastElementChild;
+      if (lastChild && lastChild.classList.contains("options-row")) {
+        Array.from(lastChild.querySelectorAll("button")).forEach((b) => (b.disabled = false));
+      }
+
+      inputEl.disabled = false;
+      sendBtn.disabled = false;
+      inputEl.value = text;
+      inputEl.dispatchEvent(new Event('input')); // Força o redimensionamento
+      setInputRowVisible(true);
+      inputEl.focus();
+      updateExportButtonsState();
+      if (!messagesEl.children.length) renderWelcome();
+    });
+    wrapper.appendChild(editLink);
+
+    messagesEl.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
+  }
+
+  function appendErrorNote(text, retryText) {
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.alignItems = "center";
+    wrapper.style.gap = "6px";
+    wrapper.style.alignSelf = "center";
+
+    const div = document.createElement("div");
+    div.className = "msg error";
+    div.textContent = "⚠️ " + text;
+    wrapper.appendChild(div);
+
+    if (retryText !== undefined) {
+      const retryBtn = document.createElement("button");
+      retryBtn.className = "option-btn";
+      retryBtn.type = "button";
+      retryBtn.textContent = "🔁 Tentar novamente";
+      retryBtn.addEventListener("click", () => {
+        if(isProcessing) return;
+        wrapper.remove();
+        sendMessage(retryText);
+      });
+      wrapper.appendChild(retryBtn);
+    }
+
+    messagesEl.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
+  }
+
+  function extractOptions(rawText) {
+    const lines = rawText.split("\n");
+    let lastContentIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i].trim() !== "") { lastContentIdx = i; break; }
+    }
+    if (lastContentIdx === -1) return { body: rawText, options: null };
+
+    const optionRe = /^\s*(\d{1,2})\.\s+(.+)$/;
+    const group = [];
+    let cursor = lastContentIdx;
+    while (cursor >= 0) {
+      const line = lines[cursor];
+      if (line.trim() === "") { cursor--; continue; }
+      const m = line.match(optionRe);
+      if (!m) break;
+      group.unshift({ idx: cursor, num: m[1], label: m[2] });
+      cursor--;
+    }
+
+    if (group.length < 2) return { body: rawText, options: null };
+
+    const firstIdx = group[0].idx;
+    const bodyLines = lines.slice(0, firstIdx);
+    const body = bodyLines.join("\n").trim();
+    const options = group.map((o) => ({
+      num: o.num,
+      label: o.label.replace(/\*\*/g, "").replace(/[*_`]/g, "").trim(),
+    }));
+    return { body: body || rawText, options };
+  }
+
+  function renderMarkdown(text) {
+    if (window.marked && window.DOMPurify) {
+      const html = marked.parse(text, { breaks: true });
+      return DOMPurify.sanitize(html);
+    }
+    // Fallback robusto caso CDNs falhem
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return escaped.replace(/\n/g, "<br>");
+  }
+
+  function appendOptionsRow(options) {
+    const row = document.createElement("div");
+    row.className = "options-row";
+    options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.type = "button";
+      btn.textContent = opt.num + ". " + opt.label;
+      btn.addEventListener("click", () => {
+        if(isProcessing) return;
+        Array.from(row.querySelectorAll("button")).forEach((b) => (b.disabled = true));
+        sendMessage(opt.num);
+      });
+      row.appendChild(btn);
+    });
+
+    const backBtn = document.createElement("button");
+    backBtn.className = "option-btn";
+    backBtn.type = "button";
+    backBtn.textContent = "↩️ Voltar e mudar resposta anterior";
+    backBtn.addEventListener("click", () => {
+      if(isProcessing) return;
+      const userTurns = messagesEl.querySelectorAll(".user-turn");
+      const lastUserTurn = userTurns[userTurns.length - 1];
+      const editBtn = lastUserTurn && lastUserTurn.querySelector(".edit-link");
+      if (editBtn) editBtn.click();
+    });
+    row.appendChild(backBtn);
+
+    messagesEl.appendChild(row);
+  }
+
+  function appendClosingRow() {
+    const row = document.createElement("div");
+    row.className = "options-row";
+
+    const btnNew = document.createElement("button");
+    btnNew.className = "option-btn";
+    btnNew.type = "button";
+    btnNew.textContent = "💬 Tratar outra situação";
+    btnNew.addEventListener("click", () => restartConversation());
+
+    const btnEnd = document.createElement("button");
+    btnEnd.className = "option-btn";
+    btnEnd.type = "button";
+    btnEnd.textContent = "✅ Encerrar conversa";
+    btnEnd.addEventListener("click", () => {
+      Array.from(row.querySelectorAll("button")).forEach((b) => (b.disabled = true));
+      const note = document.createElement("div");
+      note.className = "msg system-note";
+      note.textContent =
+        "Conversa encerrada. Que Deus abençoe sua caminhada. 🙏 Você pode salvar o registro em PDF, enviar por WhatsApp, ou reiniciar a qualquer momento pelo botão no topo.";
+      messagesEl.appendChild(note);
+      scrollToBottom();
+    });
+
+    row.appendChild(btnNew);
+    row.appendChild(btnEnd);
+    messagesEl.appendChild(row);
+  }
+
+  function appendAssistantBubble(rawText) {
+    clearWelcomeNote();
+
+    let text = rawText;
+    let isClosing = false;
+    if (text.includes(CLOSING_MARKER)) {
+      isClosing = true;
+      text = text.split(CLOSING_MARKER).join("").trim();
+    }
+
+    const div = document.createElement("div");
+    div.className = "msg assistant";
+
+    if (isClosing) {
+      div.innerHTML = renderMarkdown(text);
+      messagesEl.appendChild(div);
+      appendClosingRow();
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
+      setInputRowVisible(false);
+    } else {
+      const { body, options } = extractOptions(text);
+      div.innerHTML = renderMarkdown(body);
+      messagesEl.appendChild(div);
+      if (options) {
+        appendOptionsRow(options);
+        setInputRowVisible(false);
+      } else {
+        setInputRowVisible(true);
+      }
+    }
+
+    scrollToStartOf(div);
+  }
+
+  let loadingPhraseTimer = null;
+
+  function setLoading(isLoading) {
+    isProcessing = isLoading; // Ativa Trava Global Anti-bugs
+    sendBtn.disabled = isLoading || inputEl.disabled;
+    inputEl.disabled = isLoading || inputEl.disabled;
+    
+    let typingEl = document.getElementById("typing-indicator");
+    if (isLoading) {
+      if (!typingEl) {
+        typingEl = document.createElement("div");
+        typingEl.id = "typing-indicator";
+        typingEl.className = "typing";
+        typingEl.textContent = LOADING_PHRASES[0];
+        messagesEl.appendChild(typingEl);
+        scrollToBottom();
+
+        let phraseIdx = 0;
+        loadingPhraseTimer = setInterval(() => {
+          phraseIdx = (phraseIdx + 1) % LOADING_PHRASES.length;
+          const el = document.getElementById("typing-indicator");
+          if (el) el.textContent = LOADING_PHRASES[phraseIdx];
+        }, 2800);
+      }
+    } else {
+      if (loadingPhraseTimer) {
+        clearInterval(loadingPhraseTimer);
+        loadingPhraseTimer = null;
+      }
+      if (typingEl) typingEl.remove();
+    }
+  }
+
+  function updateExportButtonsState() {
+    const hasContent = history.length > 0;
+    whatsappBtn.disabled = !hasContent;
+    pdfBtn.disabled = !hasContent;
+  }
+
+  function restartConversation() {
+    // Cancela imediatamente qualquer requisição pendente 
+    if (activeAbortController) {
+      activeAbortController.abort();
+      activeAbortController = null;
+    }
+    setLoading(false); // Libera as travas
+    history = [];
+    inputLabelEl.classList.remove("hidden");
+    inputEl.value = "";
+    resetInputSize();
+    inputEl.disabled = false;
+    sendBtn.disabled = false;
+    setInputRowVisible(true);
+    updateExportButtonsState();
+    renderWelcome();
+    inputEl.focus();
+  }
+
+  async function sendMessage(forcedText) {
+    if (isProcessing) return; // Trava de proteção (evita duplo envio)
+    
+    const text = (forcedText !== undefined ? forcedText : inputEl.value).trim();
+    if (!text) return;
+
+    const historyIndexBefore = history.length;
+    const userWrapper = appendUserBubble(text, historyIndexBefore);
+    if (forcedText === undefined) {
+      inputEl.value = "";
+      resetInputSize();
+    }
+    setLoading(true);
+
+    const attemptedHistory = [...history, { role: "user", text }];
+    activeAbortController = new AbortController(); // Inicia controle de interrupção
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-App-Secret": APP_SECRET,
+        },
+        body: JSON.stringify({ messages: attemptedHistory }),
+        signal: activeAbortController.signal
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = { error: "resposta inesperada" };
+      }
+
+      setLoading(false);
+
+      if (!res.ok || !data.reply) {
+        userWrapper.remove();
+        if (forcedText === undefined) {
+            inputEl.value = text;
+            inputEl.dispatchEvent(new Event('input')); // Restaura visual
+        }
+        appendErrorNote(FRIENDLY_ERROR_TEXT, text);
+        return;
+      }
+
+      history = attemptedHistory;
+      history.push({ role: "assistant", text: data.reply });
+      updateExportButtonsState();
+      appendAssistantBubble(data.reply);
+      
+    } catch (err) {
+      // Se o erro foi um "aborto" causado por um clique em Reiniciar, nós apenas ignoramos.
+      if (err.name === 'AbortError') return; 
+      
+      setLoading(false);
+      userWrapper.remove();
+      if (forcedText === undefined) {
+        inputEl.value = text;
+        inputEl.dispatchEvent(new Event('input'));
+      }
+      appendErrorNote(FRIENDLY_NETWORK_ERROR_TEXT, text);
+    } finally {
+       activeAbortController = null; 
+    }
+  }
+
+  function buildExportableHistory() {
+    const result = [];
+    let lastOptions = null;
+    history.forEach((m) => {
+      if (m.role === "assistant") {
+        const clean = m.text.split(CLOSING_MARKER).join("").trim();
+        const { body, options } = extractOptions(clean);
+        result.push({ role: "assistant", text: body });
+        lastOptions = options;
+      } else {
+        let text = m.text;
+        if (lastOptions) {
+          const match = lastOptions.find((o) => o.num === text.trim());
+          if (match) text = match.label;
+        }
+        result.push({ role: "user", text });
+        lastOptions = null;
+      }
+    });
+    return result;
+  }
+
+  function toWhatsAppFormatting(text) {
+    let t = text.replace(/^>\s?(.*)$/gm, "_$1_");
+    t = t.replace(/\*\*(.+?)\*\*/g, "$1");
+    t = t.replace(/\*(.+?)\*/g, "_$1_");
+    t = t.replace(/(.+?)/g, "*$1*");
+    t = t.replace(/^#{1,6}\s*/gm, "");
+    t = t.replace(/^-{3,}\s*$/gm, "");
+    return t;
+  }
+
+  function buildWhatsAppReportText() {
+    const exportable = buildExportableHistory();
+    const firstUserMsg = exportable.find((m) => m.role === "user");
+    const lastAssistantMsg = [...exportable].reverse().find((m) => m.role === "assistant");
+    const userAnswers = exportable.filter((m) => m.role === "user").slice(1);
+
+    let text = "*Registro de Aconselhamento Bíblico Cristocêntrico*\n" + new Date().toLocaleDateString("pt-BR") + "\n\n";
+
+    if (firstUserMsg) {
+      text += "*Situação relatada:*\n" + firstUserMsg.text + "\n\n";
+    }
+    if (userAnswers.length) {
+      text += "*Respostas ao longo da conversa:*\n";
+      userAnswers.forEach((m, i) => {
+        text += (i + 1) + ". " + m.text + "\n";
+      });
+      text += "\n";
+    }
+    if (lastAssistantMsg) {
+      text += "*Orientação final:*\n" + toWhatsAppFormatting(lastAssistantMsg.text) + "\n\n";
+    }
+    text += "⚠️ *Atenção:*\n" + CRISIS_ALERT_TEXT + "\n\n" + FOOTER_TEXT;
+    return text;
+  }
+
+  whatsappBtn.addEventListener("click", () => {
+    if (!history.length || isProcessing) return;
+    const full = buildWhatsAppReportText();
+    const encoded = encodeURIComponent(full);
+    window.open("https://wa.me/?text=" + encoded, "_blank");
+  });
+
+  function stripMarkdownForPdf(text) {
+    return text
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        let bold = false;
+        let quote = false;
+        let content = line;
+        if (/^>\s?/.test(content)) {
+          quote = true;
+          content = content.replace(/^>\s?/, "");
+        }
+        if (/^#{1,6}\s*/.test(content)) {
+          bold = true;
+          content = content.replace(/^#{1,6}\s*/, "");
+        }
+        content = content.replace(/\*\*(.+?)\*\*/g, "$1");
+        content = content.replace(/\*(.+?)\*/g, "$1");
+        content = content.replace(/^-{3,}$/, "");
+        content = content.replace(/^[-*]\s+/, "• ");
+        return { text: content, bold, quote };
+      })
+      .filter((l) => l.text.length > 0);
+  }
+
+  pdfBtn.addEventListener("click", () => {
+    if (!history.length || isProcessing) return;
+    if (typeof window.jspdf === "undefined") {
+      appendErrorNote("Não foi possível gerar o PDF agora. Verifique sua conexão com a internet e tente novamente.");
+      return;
+    }
+    const originalLabel = pdfBtn.textContent;
+    pdfBtn.disabled = true;
+    pdfBtn.textContent = "⏳ Gerando PDF…";
+
+    // Timeout leve só para permitir o redesenho visual do botão "Gerando..."
+    setTimeout(() => {
+        try {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ unit: "mm", format: "a4" });
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const pageHeight = doc.internal.pageSize.getHeight();
+          const margin = 18;
+          const maxWidth = pageWidth - margin * 2;
+          let y = margin;
+
+          function ensureSpace(need) {
+            if (y + need > pageHeight - margin) {
+              doc.addPage();
+              y = margin;
+            }
+          }
+
+          function printParagraphs(text, opts) {
+            opts = opts || {};
+            const size = opts.size || 11;
+            const lineHeight = opts.lineHeight || 6;
+            const color = opts.color || [43, 36, 32];
+            const quoteColor = [122, 59, 46];
+            const paragraphs = stripMarkdownForPdf(text);
+            paragraphs.forEach((p) => {
+              const indent = p.quote ? 5 : 0;
+              if (p.quote) {
+                y += 1.5;
+                doc.setFont("times", "italic");
+                doc.setFontSize(size);
+                doc.setTextColor(quoteColor[0], quoteColor[1], quoteColor[2]);
+              } else {
+                doc.setFont("times", p.bold ? "bold" : "normal");
+                doc.setFontSize(p.bold ? size + 1 : size);
+                doc.setTextColor(color[0], color[1], color[2]);
+              }
+              const wrapped = doc.splitTextToSize(p.text, maxWidth - indent);
+              wrapped.forEach((w) => {
+                ensureSpace(lineHeight);
+                doc.text(w, margin + indent, y);
+                y += lineHeight;
+              });
+              y += p.quote ? 2.5 : 1.5;
+            });
+          }
+
+          // Título
+          doc.setFont("times", "bold");
+          doc.setFontSize(16);
+          doc.setTextColor(92, 44, 34);
+          doc.text("Registro de Aconselhamento Bíblico Cristocêntrico", margin, y);
+          y += 8;
+
+          // Data
+          doc.setFont("times", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(107, 95, 82);
+          doc.text(new Date().toLocaleDateString("pt-BR"), margin, y);
+          y += 10;
+
+          // Conversa
+          buildExportableHistory().forEach((m) => {
+            const label = m.role === "assistant" ? "CONSELHEIRO BÍBLICO" : "VOCÊ";
+            ensureSpace(8);
+            doc.setFont("times", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(122, 59, 46);
+            doc.text(label, margin, y);
+            y += 6;
+            printParagraphs(m.text, { size: 11, lineHeight: 6, color: [43, 36, 32] });
+            y += 4;
+          });
+
+          // Alerta de crise
+          const crisisLines = stripMarkdownForPdf("Atenção: " + CRISIS_ALERT_TEXT);
+          const crisisWrapped = [];
+          doc.setFont("times", "bold");
+          doc.setFontSize(10);
+          crisisLines.forEach((p) => {
+            doc.splitTextToSize(p.text, maxWidth - 12).forEach((w) => crisisWrapped.push(w));
+          });
+          const boxHeight = crisisWrapped.length * 5.5 + 10;
+          ensureSpace(boxHeight + 8);
+          doc.setFillColor(251, 234, 234);
+          doc.setDrawColor(230, 184, 184);
+          doc.roundedRect(margin - 4, y - 4, maxWidth + 8, boxHeight, 2, 2, "FD");
+          doc.setTextColor(122, 46, 46);
+          let cy = y + 3;
+          crisisWrapped.forEach((w) => {
+            doc.text(w, margin, cy);
+            cy += 5.5;
+          });
+          y += boxHeight + 10;
+
+          // Rodapé
+          ensureSpace(8);
+          doc.setFont("times", "normal");
+          doc.setFontSize(8.5);
+          doc.setTextColor(107, 95, 82);
+          const footerWidth = doc.getTextWidth(FOOTER_TEXT);
+          doc.text(FOOTER_TEXT, (pageWidth - footerWidth) / 2, y);
+
+          const filename = "aconselhamento-biblico-" + new Date().toISOString().slice(0, 10) + ".pdf";
+          doc.save(filename);
+        } catch (e) {
+          appendErrorNote("Não foi possível gerar o PDF agora. Tente novamente.");
+        } finally {
+          pdfBtn.disabled = false;
+          pdfBtn.textContent = originalLabel;
+        }
+    }, 50); // Fim setTimeout
+  });
+
+  restartBtn.addEventListener("click", restartConversation);
+  
+  sendBtn.addEventListener("click", () => {
+    if (!sendBtn.disabled) sendMessage();
+  });
+  
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!sendBtn.disabled && !isProcessing) sendMessage();
+    }
+  });
+
+  renderWelcome();
+  updateExportButtonsState();
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aconselhamento Bíblico Cristocêntrico</title>
 <script>
   // Detecta cedo se a página está incorporada (embed) dentro de outra página, como
   // um Google Site — nesse caso a altura do iframe é definida por fora e pode não
