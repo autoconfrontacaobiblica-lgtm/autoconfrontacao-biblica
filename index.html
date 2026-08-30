@@ -681,6 +681,8 @@
     editLink.textContent = "✏️ voltar e mudar esta resposta";
     editLink.addEventListener("click", () => {
       if (isProcessing) return; // não deixa editar enquanto uma resposta está chegando
+      // A conversa vai mudar de rumo: o que estava sendo preparado não vale mais.
+      limparPreBusca();
       truncateFromInclusive(wrapper);
       history = history.slice(0, historyIndexBefore);
 
@@ -882,6 +884,10 @@
       if (options) {
         appendOptionsRow(options);
         setInputRowVisible(false);
+        // Enquanto a pessoa lê esta resposta, o sistema já vai preparando em
+        // segundo plano o que viria a seguir para cada opção. Começa depois de um
+        // instante, para não disputar espaço com o que ainda está sendo desenhado.
+        agendarPreBusca(options);
       } else {
         // Sem opções numeradas: a pessoa responde escrevendo livremente.
         setInputRowVisible(true);
@@ -996,6 +1002,7 @@
     }
     setLoading(false);
     isProcessing = false;
+    limparPreBusca();
     destacarBotoesDeExportar(false);
     history = [];
     inputLabelEl.classList.remove("hidden");
@@ -1013,6 +1020,127 @@
     history = attemptedHistory;
     history.push({ role: "assistant", text: replyText });
     updateExportButtonsState();
+  }
+
+  // ---- Respostas adiantadas (preparadas em segundo plano) ----
+  //
+  // Como toda pergunta termina em opções numeradas, o sistema sabe EXATAMENTE
+  // qual será a próxima mensagem da pessoa: "1", "2" ou "3". Não é adivinhação.
+  // Então, enquanto ela lê a resposta atual — 30 a 60 segundos de tempo ocioso —
+  // já pedimos ao servidor o que viria depois de cada escolha e guardamos aqui.
+  // Quando ela clica, a resposta aparece na hora, sem espera nenhuma.
+  //
+  // As preparações são feitas UMA DE CADA VEZ, começando pela opção 1 (a mais
+  // escolhida). Isso é proposital: se a pessoa decide rápido, gastamos só uma
+  // chamada extra; se ela lê com calma, dá tempo de preparar todas. E, por não
+  // disparar vários pedidos no mesmo instante, não corremos o risco de bater no
+  // limite de uso por minuto do plano gratuito.
+  // Quantas opções, no máximo, podem ser preparadas por pergunta.
+  // 3 = prepara todas (mais rápido, gasta mais cota gratuita).
+  // 1 = prepara só a opção 1, que é a mais escolhida (bem mais econômico).
+  // Basta trocar este número se um dia o uso crescer e a cota apertar.
+  const MAX_OPCOES_PREPARADAS = 3;
+
+  const cacheAdiantado = new Map();
+  let cacheParaHistorico = -1;      // a que ponto da conversa este cache pertence
+  let preBuscaGeracao = 0;          // invalida cadeias antigas
+  let preBuscaControllers = [];     // permite cancelar pedidos ainda em voo
+  let preBuscaEmVoo = null;         // { opcao, promessa } do pedido deste instante
+  let preBuscaTimer = null;         // espera antes de começar a preparar
+
+  // A preparação começa alguns instantes depois da resposta aparecer. Se a pessoa
+  // escolher antes disso, este agendamento precisa ser cancelado — senão ele
+  // dispararia no meio da próxima pergunta e gastaria cota à toa.
+  function agendarPreBusca(opcoes) {
+    if (preBuscaTimer) clearTimeout(preBuscaTimer);
+    preBuscaTimer = setTimeout(() => {
+      preBuscaTimer = null;
+      iniciarPreBusca(opcoes);
+    }, 500);
+  }
+
+  // Para de PEDIR novas opções, mas deixa terminar o pedido que já está em voo —
+  // ele pode ser justamente o que a pessoa acabou de escolher, e desperdiçá-lo
+  // seria gastar cota duas vezes pela mesma resposta.
+  function pararPreBusca() {
+    preBuscaGeracao++;
+    if (preBuscaTimer) { clearTimeout(preBuscaTimer); preBuscaTimer = null; }
+  }
+
+  // Interrompe e DESCARTA tudo — usado quando a conversa muda de rumo (a pessoa
+  // voltou para mudar uma resposta, ou reiniciou), pois o que estava preparado
+  // deixou de valer.
+  function limparPreBusca() {
+    preBuscaGeracao++;
+    if (preBuscaTimer) { clearTimeout(preBuscaTimer); preBuscaTimer = null; }
+    preBuscaControllers.forEach((c) => { try { c.abort(); } catch (e) {} });
+    preBuscaControllers = [];
+    preBuscaEmVoo = null;
+    cacheAdiantado.clear();
+    cacheParaHistorico = -1;
+  }
+
+  function pegarRespostaAdiantada(texto) {
+    // Só serve se tiver sido preparada exatamente para este ponto da conversa.
+    if (cacheParaHistorico !== history.length) return null;
+    return cacheAdiantado.get(String(texto).trim()) || null;
+  }
+
+  // Se a opção que a pessoa acabou de escolher é exatamente a que está sendo
+  // preparada neste instante, aproveitamos aquele mesmo pedido em vez de abrir
+  // outro igual: economiza uma chamada e ainda chega antes.
+  function adotarPreBuscaEmVoo(texto) {
+    if (cacheParaHistorico !== history.length) return null;
+    if (preBuscaEmVoo && preBuscaEmVoo.opcao === String(texto).trim()) return preBuscaEmVoo.promessa;
+    return null;
+  }
+
+  async function buscarOpcao(baseHistorico, numero, controller) {
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+      // Sem transmissão ao vivo: aqui queremos o texto completo de uma vez,
+      // já que ninguém está olhando enquanto ele é preparado.
+      body: JSON.stringify({
+        messages: baseHistorico.concat([{ role: "user", text: numero }]),
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data && data.reply) || null;
+  }
+
+  async function iniciarPreBusca(opcoes) {
+    limparPreBusca();
+    if (!opcoes || !opcoes.length) return;
+
+    const geracao = ++preBuscaGeracao;
+    const baseHistorico = history.slice();
+    cacheParaHistorico = baseHistorico.length;
+
+    for (const opt of opcoes.slice(0, MAX_OPCOES_PREPARADAS)) {
+      // Se a conversa mudou de rumo, a cadeia morre aqui.
+      if (geracao !== preBuscaGeracao) return;
+
+      const numero = String(opt.num);
+      const controller = new AbortController();
+      preBuscaControllers.push(controller);
+
+      const promessa = buscarOpcao(baseHistorico, numero, controller)
+        .then((texto) => {
+          if (texto) cacheAdiantado.set(numero, texto);
+          return texto;
+        })
+        .catch(() => null)
+        .finally(() => {
+          if (preBuscaEmVoo && preBuscaEmVoo.promessa === promessa) preBuscaEmVoo = null;
+        });
+
+      preBuscaEmVoo = { opcao: numero, promessa };
+      await promessa;
+    }
   }
 
   // Tenta o modo ao vivo. Devolve true se conseguiu mostrar algum texto para a
@@ -1146,6 +1274,13 @@
     const text = (forcedText !== undefined ? forcedText : inputEl.value).trim();
     if (!text) return;
 
+    // A pessoa escolheu: se já preparamos esta resposta em segundo plano, ela sai
+    // na hora. Se ela está sendo preparada agora, aproveitamos esse mesmo pedido.
+    // Nos dois casos, paramos de preparar as outras, que não servem mais.
+    const jaPronta = pegarRespostaAdiantada(text);
+    const emPreparo = jaPronta ? null : adotarPreBuscaEmVoo(text);
+    pararPreBusca();
+
     const historyIndexBefore = history.length;
     const userWrapper = appendUserBubble(text, historyIndexBefore);
     if (forcedText === undefined) {
@@ -1154,9 +1289,11 @@
     }
     isProcessing = true;
     activeAbortController = new AbortController();
-    setLoading(true);
 
     const attemptedHistory = [...history, { role: "user", text }];
+
+    // Só liga o "Refletindo…" se realmente houver espera pela frente.
+    if (!jaPronta) setLoading(true);
 
     const falhar = (mensagem) => {
       setLoading(false);
@@ -1171,6 +1308,27 @@
     };
 
     try {
+      // 0a) Instantâneo: a resposta desta opção já estava pronta, esperando.
+      if (jaPronta) {
+        commitAssistantReply(attemptedHistory, jaPronta);
+        appendAssistantBubble(jaPronta);
+        return;
+      }
+
+      // 0b) Quase pronta: o pedido desta mesma opção já estava em andamento.
+      // Basta esperar ele terminar, em vez de começar outro igual do zero.
+      if (emPreparo) {
+        let texto = null;
+        try { texto = await emPreparo; } catch (e) { texto = null; }
+        if (texto) {
+          setLoading(false);
+          commitAssistantReply(attemptedHistory, texto);
+          appendAssistantBubble(texto);
+          return;
+        }
+        // Se não deu certo, segue normalmente pelos caminhos abaixo.
+      }
+
       // 1) Caminho principal: resposta ao vivo.
       try {
         const deuCerto = await streamReply(attemptedHistory, activeAbortController);
@@ -1350,103 +1508,243 @@
     try {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "mm", format: "a4" });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 18;
-      const maxWidth = pageWidth - margin * 2;
-      let y = margin;
 
-      function ensureSpace(need) {
-        if (y + need > pageHeight - margin) {
-          doc.addPage();
-          y = margin;
-        }
-      }
+      // ---- Paleta (as mesmas cores do site) ----
+      const ACENTO = [122, 59, 46];
+      const ACENTO_ESC = [92, 44, 34];
+      const TINTA = [43, 36, 32];
+      const TINTA_SUAVE = [107, 95, 82];
+      const BORDA = [206, 186, 152];
+      const FUNDO_VERSICULO = [240, 232, 214];
 
-      function printParagraphs(text, opts) {
-        opts = opts || {};
-        const size = opts.size || 11;
-        const lineHeight = opts.lineHeight || 6;
-        const color = opts.color || [43, 36, 32];
-        const quoteColor = [122, 59, 46];
-        const paragraphs = stripMarkdownForPdf(text);
-        paragraphs.forEach((p) => {
-          const indent = p.quote ? 5 : 0;
-          if (p.quote) {
-            y += 1.5;
-            doc.setFont("times", "italic");
-            doc.setFontSize(size);
-            doc.setTextColor(quoteColor[0], quoteColor[1], quoteColor[2]);
-          } else {
-            doc.setFont("times", p.bold ? "bold" : "normal");
-            doc.setFontSize(p.bold ? size + 1 : size);
-            doc.setTextColor(color[0], color[1], color[2]);
-          }
-          const wrapped = doc.splitTextToSize(p.text, maxWidth - indent);
-          wrapped.forEach((w) => {
-            ensureSpace(lineHeight);
-            doc.text(w, margin + indent, y);
-            y += lineHeight;
-          });
-          y += p.quote ? 2.5 : 1.5;
-        });
-      }
+      // ---- Geometria da página (A4: 210 x 297 mm) ----
+      const LARGURA = doc.internal.pageSize.getWidth();
+      const MOLDURA = { x: 12, y: 12, w: LARGURA - 24, h: 273 };
+      const LINHA_CABECALHO = 33;   // régua abaixo do cabeçalho
+      const LINHA_RODAPE = 272;     // régua acima do rodapé
+      const AREA = { topo: 40, base: 266, esq: 21, dir: LARGURA - 21 };
+      const LARGURA_TEXTO = AREA.dir - AREA.esq;
+      const ALTURA_UTIL = AREA.base - AREA.topo;
+      const DATA_HOJE = new Date().toLocaleDateString("pt-BR");
 
-      // Título
-      doc.setFont("times", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(92, 44, 34);
-      doc.text("Registro de Aconselhamento Bíblico Cristocêntrico", margin, y);
-      y += 8;
+      let y = AREA.topo;
 
-      // Data
-      doc.setFont("times", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(107, 95, 82);
-      doc.text(new Date().toLocaleDateString("pt-BR"), margin, y);
-      y += 10;
+      // ---- Moldura (bordas laterais) + cabeçalho, repetidos em toda página ----
+      function desenharMolduraECabecalho() {
+        // Moldura dupla: um traço firme e outro fininho por dentro.
+        doc.setDrawColor(BORDA[0], BORDA[1], BORDA[2]);
+        doc.setLineWidth(0.7);
+        doc.roundedRect(MOLDURA.x, MOLDURA.y, MOLDURA.w, MOLDURA.h, 3, 3, "S");
+        doc.setLineWidth(0.2);
+        doc.roundedRect(MOLDURA.x + 1.6, MOLDURA.y + 1.6, MOLDURA.w - 3.2, MOLDURA.h - 3.2, 2.4, 2.4, "S");
 
-      // Conversa
-      buildExportableHistory().forEach((m) => {
-        const label = m.role === "assistant" ? "CONSELHEIRO BÍBLICO" : "VOCÊ";
-        ensureSpace(8);
+        // Logotipo: círculo cheio com a cruz vazada, igual ao do site.
+        doc.setFillColor(ACENTO[0], ACENTO[1], ACENTO[2]);
+        doc.circle(25, 22, 4.6, "F");
+        doc.setDrawColor(246, 241, 231);
+        doc.setLineWidth(1.3);
+        doc.line(25, 18.3, 25, 26.2);
+        doc.line(22.2, 20.6, 27.8, 20.6);
+
         doc.setFont("times", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(122, 59, 46);
-        doc.text(label, margin, y);
-        y += 6;
-        printParagraphs(m.text, { size: 11, lineHeight: 6, color: [43, 36, 32] });
-        y += 4;
+        doc.setFontSize(11.5);
+        doc.setTextColor(ACENTO_ESC[0], ACENTO_ESC[1], ACENTO_ESC[2]);
+        doc.text("Aconselhamento Bíblico Cristocêntrico", 33, 21.5);
+
+        doc.setFont("times", "italic");
+        doc.setFontSize(8);
+        doc.setTextColor(TINTA_SUAVE[0], TINTA_SUAVE[1], TINTA_SUAVE[2]);
+        doc.text("Registro de aconselhamento pastoral", 33, 26.5);
+
+        doc.setFont("times", "normal");
+        doc.setFontSize(8.5);
+        doc.text(DATA_HOJE, AREA.dir, 26.5, { align: "right" });
+
+        doc.setDrawColor(BORDA[0], BORDA[1], BORDA[2]);
+        doc.setLineWidth(0.4);
+        doc.line(AREA.esq, LINHA_CABECALHO, AREA.dir, LINHA_CABECALHO);
+      }
+
+      function novaPagina() {
+        doc.addPage();
+        desenharMolduraECabecalho();
+        y = AREA.topo;
+      }
+
+      // ---- Medição: descobre a altura de um bloco ANTES de desenhá-lo ----
+      // É isso que permite garantir que nenhum parágrafo seja partido ao meio:
+      // se ele não couber inteiro no que resta da folha, começamos outra folha.
+      function medirBloco(p) {
+        let fonte, estilo, tamanho, entrelinha, recuo, antes, depois;
+        if (p.quote) {
+          fonte = "times"; estilo = "italic"; tamanho = 10.5;
+          entrelinha = 5.4; recuo = 7; antes = 7; depois = 4;
+        } else if (p.bold) {
+          fonte = "times"; estilo = "bold"; tamanho = 12.5;
+          entrelinha = 6.4; recuo = 0; antes = 4.5; depois = 1.8;
+        } else {
+          fonte = "times"; estilo = "normal"; tamanho = 11;
+          entrelinha = 5.8; recuo = 0; antes = 0; depois = 2.4;
+        }
+        doc.setFont(fonte, estilo);
+        doc.setFontSize(tamanho);
+        const linhas = doc.splitTextToSize(p.text, LARGURA_TEXTO - recuo * 2);
+        const alturaTexto = linhas.length * entrelinha;
+        return {
+          linhas, fonte, estilo, tamanho, entrelinha, recuo, antes, depois,
+          altura: antes + alturaTexto + depois,
+          alturaTexto,
+        };
+      }
+
+      function desenharBloco(p, m) {
+        y += m.antes;
+
+        if (p.quote) {
+          // Versículo: caixa clara com uma barra de destaque à esquerda.
+          // A caixa é calculada a partir da altura VISUAL do texto (topo da
+          // primeira letra até a base da última linha), com folga igual em cima
+          // e embaixo — senão o texto encosta na borda e fica apertado.
+          const topoCaixa = y - 5.1;
+          const alturaCaixa = m.alturaTexto - m.entrelinha + 8.4;
+          doc.setFillColor(FUNDO_VERSICULO[0], FUNDO_VERSICULO[1], FUNDO_VERSICULO[2]);
+          doc.rect(AREA.esq, topoCaixa, LARGURA_TEXTO, alturaCaixa, "F");
+          doc.setFillColor(ACENTO[0], ACENTO[1], ACENTO[2]);
+          doc.rect(AREA.esq, topoCaixa, 1.4, alturaCaixa, "F");
+          doc.setTextColor(ACENTO_ESC[0], ACENTO_ESC[1], ACENTO_ESC[2]);
+        } else if (p.bold) {
+          doc.setTextColor(ACENTO_ESC[0], ACENTO_ESC[1], ACENTO_ESC[2]);
+        } else {
+          doc.setTextColor(TINTA[0], TINTA[1], TINTA[2]);
+        }
+
+        doc.setFont(m.fonte, m.estilo);
+        doc.setFontSize(m.tamanho);
+        m.linhas.forEach((linha) => {
+          doc.text(linha, AREA.esq + m.recuo, y);
+          y += m.entrelinha;
+        });
+        y += m.depois;
+      }
+
+      // Imprime um bloco inteiro, nunca partido — a não ser que ele seja, sozinho,
+      // maior que uma página inteira (aí não existe alternativa a não ser dividir).
+      function imprimirBloco(p, espacoExtraNecessario) {
+        const extra = espacoExtraNecessario || 0;
+        const m = medirBloco(p);
+        if (m.altura > ALTURA_UTIL) {
+          m.linhas.forEach((linha) => {
+            if (y + m.entrelinha > AREA.base) novaPagina();
+            doc.setFont(m.fonte, m.estilo);
+            doc.setFontSize(m.tamanho);
+            doc.setTextColor(TINTA[0], TINTA[1], TINTA[2]);
+            doc.text(linha, AREA.esq + m.recuo, y);
+            y += m.entrelinha;
+          });
+          y += m.depois;
+          return;
+        }
+        if (y + m.altura + extra > AREA.base) novaPagina();
+        desenharBloco(p, m);
+      }
+
+      // ---- Conteúdo da conversa ----
+      desenharMolduraECabecalho();
+
+      const conversa = buildExportableHistory();
+      conversa.forEach((msg, indice) => {
+        const blocos = stripMarkdownForPdf(msg.text);
+        if (!blocos.length) return;
+        const rotulo = msg.role === "assistant" ? "CONSELHEIRO BÍBLICO" : "VOCÊ";
+
+        // O rótulo nunca fica órfão no pé da página: ele só é desenhado se o
+        // primeiro parágrafo da fala couber logo abaixo dele, na mesma folha.
+        const alturaRotulo = indice === 0 ? 6.5 : 10;
+        const primeiro = medirBloco(blocos[0]);
+        let precisaJunto = Math.min(primeiro.altura, ALTURA_UTIL);
+        // Se a fala começa com um título, o rótulo precisa caber junto com o
+        // título E com o parágrafo dele — senão o rótulo é que ficaria órfão.
+        if (blocos[0].bold && blocos[1]) {
+          const seg = medirBloco(blocos[1]);
+          if (alturaRotulo + primeiro.altura + seg.altura <= ALTURA_UTIL) {
+            precisaJunto = primeiro.altura + seg.altura;
+          }
+        }
+        if (y + alturaRotulo + precisaJunto > AREA.base) novaPagina();
+
+        if (indice > 0) {
+          doc.setDrawColor(BORDA[0], BORDA[1], BORDA[2]);
+          doc.setLineWidth(0.2);
+          doc.line(AREA.esq, y - 0.5, AREA.dir, y - 0.5);
+          y += 4;
+        }
+
+        doc.setFont("times", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(ACENTO[0], ACENTO[1], ACENTO[2]);
+        doc.text(rotulo, AREA.esq, y);
+        y += 6.5;
+
+        for (let i = 0; i < blocos.length; i++) {
+          const bloco = blocos[i];
+          let extra = 0;
+          // Um título de seção nunca fica sozinho no pé da página: só é impresso
+          // aqui se couberem, junto com ele, as duas primeiras linhas do parágrafo
+          // que vem logo abaixo. Caso contrário, título e texto vão juntos para a
+          // folha seguinte.
+          const proximo = blocos[i + 1];
+          if (bloco.bold && proximo) {
+            const seg = medirBloco(proximo);
+            const m = medirBloco(bloco);
+            // Reserva a altura INTEIRA do parágrafo seguinte, e não apenas as
+            // primeiras linhas: como nenhum parágrafo pode ser partido, reservar
+            // só um pedaço faria o texto pular de página assim mesmo, deixando o
+            // título sozinho no pé da folha.
+            const cheio = seg.altura;
+            if (m.altura + cheio <= ALTURA_UTIL) extra = cheio;
+            else extra = seg.antes + seg.entrelinha * 2;
+          }
+          imprimirBloco(bloco, extra);
+        }
+        y += 3;
       });
 
-      // Alerta de crise
-      const crisisLines = stripMarkdownForPdf("Atenção: " + CRISIS_ALERT_TEXT);
-      const crisisWrapped = [];
-      doc.setFont("times", "bold");
-      doc.setFontSize(10);
-      crisisLines.forEach((p) => {
-        doc.splitTextToSize(p.text, maxWidth - 12).forEach((w) => crisisWrapped.push(w));
-      });
-      const boxHeight = crisisWrapped.length * 5.5 + 10;
-      ensureSpace(boxHeight + 8);
-      doc.setFillColor(251, 234, 234);
-      doc.setDrawColor(230, 184, 184);
-      doc.roundedRect(margin - 4, y - 4, maxWidth + 8, boxHeight, 2, 2, "FD");
-      doc.setTextColor(122, 46, 46);
-      let cy = y + 3;
-      crisisWrapped.forEach((w) => {
-        doc.text(w, margin, cy);
-        cy += 5.5;
-      });
-      y += boxHeight + 10;
-
-      // Rodapé
-      ensureSpace(8);
+      // ---- Caixa de alerta (nunca partida entre páginas) ----
       doc.setFont("times", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(107, 95, 82);
-      const footerWidth = doc.getTextWidth(FOOTER_TEXT);
-      doc.text(FOOTER_TEXT, (pageWidth - footerWidth) / 2, y);
+      doc.setFontSize(9.5);
+      const alertaLinhas = doc.splitTextToSize(
+        "Atenção: " + CRISIS_ALERT_TEXT,
+        LARGURA_TEXTO - 10
+      );
+      const alturaAlerta = alertaLinhas.length * 5 + 9;
+      if (y + alturaAlerta + 4 > AREA.base) novaPagina();
+      y += 4;
+      doc.setFillColor(251, 238, 238);
+      doc.setDrawColor(226, 178, 178);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(AREA.esq, y, LARGURA_TEXTO, alturaAlerta, 2, 2, "FD");
+      doc.setTextColor(122, 46, 46);
+      let ya = y + 6.5;
+      alertaLinhas.forEach((linha) => {
+        doc.text(linha, AREA.esq + 5, ya);
+        ya += 5;
+      });
+
+      // ---- Rodapé em TODAS as páginas, com a numeração ----
+      // Feito no fim, quando já sabemos quantas páginas o documento tem.
+      const total = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= total; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(BORDA[0], BORDA[1], BORDA[2]);
+        doc.setLineWidth(0.4);
+        doc.line(AREA.esq, LINHA_RODAPE, AREA.dir, LINHA_RODAPE);
+
+        doc.setFont("times", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(TINTA_SUAVE[0], TINTA_SUAVE[1], TINTA_SUAVE[2]);
+        doc.text(FOOTER_TEXT, AREA.esq, LINHA_RODAPE + 5.5);
+        doc.text("Página " + i + " de " + total, AREA.dir, LINHA_RODAPE + 5.5, { align: "right" });
+      }
 
       const filename = "aconselhamento-biblico-" + new Date().toISOString().slice(0, 10) + ".pdf";
       doc.save(filename);
