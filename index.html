@@ -115,14 +115,9 @@
   #input-label.hidden {
     display: none;
   }
-  #site-footer {
-    text-align: center;
-    color: var(--ink-soft);
-    font-size: 0.72rem;
-    opacity: 0.75;
-    margin: 0;
-    padding: 6px 0 10px;
-  }
+  /* O rodapé "© Autoconfrontação Bíblica · 2026" foi retirado da TELA para não
+     ocupar altura à toa no celular. Ele continua aparecendo no relatório em PDF
+     e no texto enviado por WhatsApp, onde a assinatura faz sentido. */
   .welcome-hero {
     display: flex;
     flex-direction: column;
@@ -211,25 +206,46 @@
   #toolbar {
     display: flex;
     gap: 8px;
-    padding: 10px 14px;
+    padding: 8px 10px;
     border-top: 1px solid var(--border);
     background: #fbf6ea;
-    flex-wrap: wrap;
+    /* nowrap: os três botões ficam SEMPRE na mesma linha, nunca empilhados */
+    flex-wrap: nowrap;
     flex-shrink: 0;
     justify-content: center;
+    align-items: center;
   }
   .toolbar-btn {
     background: var(--bg-panel);
     border: 1px solid var(--border);
     color: var(--ink);
     border-radius: 8px;
-    padding: 6px 12px;
+    padding: 7px 12px;
     font-size: 0.82rem;
     font-family: inherit;
     cursor: pointer;
+    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: 0;
   }
   .toolbar-btn:hover:not(:disabled) { background: var(--user-bubble); }
   .toolbar-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* Ao final da conversa, os botões de WhatsApp e PDF pulsam em dourado para
+     convidar a pessoa a levar o relatório consigo. */
+  .toolbar-btn.destaque:not(:disabled) {
+    border-color: #d9a441;
+    background: #fffaf0;
+    font-weight: 600;
+    animation: botao-pulsa 1.8s ease-in-out infinite;
+  }
+  @keyframes botao-pulsa {
+    0%, 100% { box-shadow: 0 0 6px 0 rgba(240, 180, 90, 0.45); transform: scale(1); }
+    50% { box-shadow: 0 0 18px 4px rgba(240, 180, 90, 0.9); transform: scale(1.05); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toolbar-btn.destaque:not(:disabled) { animation: none; box-shadow: 0 0 12px 2px rgba(240, 180, 90, 0.8); }
+  }
   #messages {
     flex: 1;
     min-height: 0;
@@ -447,12 +463,31 @@
     .verse-card { padding: 12px 16px; }
     .verse-card p { font-size: 0.9rem; }
     #input-label { font-size: 1rem; padding: 0 14px; }
-    #chat-container { margin: 6px 8px 8px; border-radius: 10px; }
-    #messages { padding: 14px 12px; gap: 10px; }
-    .msg { max-width: 92%; font-size: 0.94rem; padding: 10px 13px; }
-    .user-turn, .options-row { max-width: 92%; }
-    .toolbar-btn { font-size: 0.76rem; padding: 6px 10px; }
-    #input-row { padding: 10px; }
+    /* Centralizado na horizontal e aproveitando quase toda a largura da tela. */
+    #chat-container {
+      margin: 6px auto 8px;
+      width: calc(100% - 12px);
+      border-radius: 10px;
+    }
+    #messages { padding: 12px 10px; gap: 10px; }
+    /* As respostas passam a ocupar a largura toda: no celular, sobra de margem
+       lateral só espreme o texto e força mais rolagem. */
+    .msg { max-width: 100%; font-size: 0.94rem; padding: 11px 13px; }
+    .msg.assistant { width: 100%; }
+    .user-turn { max-width: 88%; }
+    .options-row { max-width: 100%; }
+    .option-btn { padding: 9px 14px; }
+    #toolbar { padding: 7px 6px; gap: 6px; }
+    .toolbar-btn { font-size: 0.78rem; padding: 7px 9px; }
+    #input-row { padding: 9px; gap: 8px; }
+    #send-btn { padding: 0 16px; }
+  }
+
+  /* Telas bem estreitas (iPhone SE e afins): encolhe só o texto dos botões, para
+     que os três continuem na mesma linha sem quebrar. */
+  @media (max-width: 360px) {
+    .toolbar-btn { font-size: 0.72rem; padding: 7px 7px; }
+    #toolbar { gap: 4px; }
   }
 
   /* MODO INCORPORADO (embed em Google Sites ou outra página via iframe):
@@ -514,10 +549,9 @@
   </div>
   <div id="toolbar">
     <button id="restart-btn" class="toolbar-btn" title="Apagar tudo e começar uma nova conversa">🔄 Reiniciar</button>
-    <button id="whatsapp-btn" class="toolbar-btn" title="Enviar esta conversa pelo WhatsApp" disabled>🟢 Enviar por WhatsApp</button>
-    <button id="pdf-btn" class="toolbar-btn" title="Salvar esta conversa como PDF" disabled>🖨️ Salvar em PDF</button>
+    <button id="whatsapp-btn" class="toolbar-btn" title="Enviar esta conversa pelo WhatsApp" disabled>🟢 WhatsApp</button>
+    <button id="pdf-btn" class="toolbar-btn" title="Salvar esta conversa como PDF" disabled>🖨️ PDF</button>
   </div>
-  <p id="site-footer">© Autoconfrontação Bíblica · 2026</p>
 </div>
 
 
@@ -540,6 +574,11 @@
   // chega ao vivo, esse primeiro pedaço costuma vir em 1 a 2 segundos; se passar
   // disso, algo está errado e partimos para o plano B em vez de deixar a pessoa parada.
   const FIRST_CHUNK_TIMEOUT_MS = 20000;
+  // Depois que o texto começou a chegar, quanto tempo aceitamos a conexão ficar
+  // PARADA antes de considerar que travou. Generoso o bastante para o relatório
+  // final (que é longo e tem pausas naturais), curto o bastante para nunca deixar
+  // a pessoa presa olhando um cursor que não anda.
+  const STALL_TIMEOUT_MS = 25000;
   // ============================
 
   const messagesEl = document.getElementById("messages");
@@ -804,7 +843,43 @@
 
   // Preenche uma bolha JÁ existente com o texto final e cuida do que vem depois dela
   // (botões de opção, ou o encerramento da conversa).
-  function renderAssistantInto(div, rawText) {
+  // A pessoa NUNCA pode ficar sem saber o que fazer. Quando uma resposta termina
+  // sem as opções numeradas — porque o texto foi cortado no limite de tamanho, ou
+  // simplesmente parou no meio — mostramos um aviso claro e um botão para pedir a
+  // resposta de novo, além de liberar a caixa de digitação.
+  function respostaParecerCortada(texto, motivoDoFim) {
+    if (motivoDoFim && motivoDoFim !== "STOP") return true; // o Google avisou que cortou
+    const fim = texto.trim().slice(-1);
+    return fim !== "" && ".!?\"'):]…".indexOf(fim) === -1;
+  }
+
+  function appendContinuarRow() {
+    const row = document.createElement("div");
+    row.className = "options-row";
+
+    const aviso = document.createElement("div");
+    aviso.className = "msg system-note";
+    aviso.textContent = "A resposta parece ter parado antes do fim.";
+    messagesEl.appendChild(aviso);
+
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    btn.type = "button";
+    btn.textContent = "🔁 Pedir a resposta completa";
+    btn.addEventListener("click", () => {
+      if (isProcessing) return;
+      // Reenvia a última mensagem da pessoa para gerar a resposta de novo.
+      const ultima = [...history].reverse().find((m) => m.role === "user");
+      if (!ultima) return;
+      btn.disabled = true;
+      history = history.slice(0, history.length - 1); // tira a resposta incompleta
+      sendMessage(ultima.text);
+    });
+    row.appendChild(btn);
+    messagesEl.appendChild(row);
+  }
+
+  function renderAssistantInto(div, rawText, motivoDoFim) {
     let text = rawText;
     let isClosing = false;
     if (text.includes(CLOSING_MARKER)) {
@@ -817,7 +892,10 @@
       appendClosingRow();
       inputEl.disabled = true;
       sendBtn.disabled = true;
+      // A caixa de digitação some (não há mais o que responder) e os botões de
+      // levar o relatório passam a pulsar, indicando o próximo passo natural.
       setInputRowVisible(false);
+      destacarBotoesDeExportar(true);
     } else {
       const { body, options } = extractOptions(text);
       div.innerHTML = renderMarkdown(body);
@@ -825,18 +903,21 @@
         appendOptionsRow(options);
         setInputRowVisible(false);
       } else {
+        // Sem opções: a pessoa pode digitar livremente. E se o texto parece ter
+        // sido cortado, oferecemos também o botão para pedir a resposta completa.
         setInputRowVisible(true);
+        if (respostaParecerCortada(text, motivoDoFim)) appendContinuarRow();
       }
     }
   }
 
   // Caminho antigo (resposta inteira de uma vez) — continua sendo usado pelo plano B.
-  function appendAssistantBubble(rawText) {
+  function appendAssistantBubble(rawText, motivoDoFim) {
     clearWelcomeNote();
     const div = document.createElement("div");
     div.className = "msg assistant";
     messagesEl.appendChild(div);
-    renderAssistantInto(div, rawText);
+    renderAssistantInto(div, rawText, motivoDoFim);
     scrollToStartOf(div);
   }
 
@@ -875,11 +956,11 @@
     return div;
   }
 
-  function finalizeAssistantStream(div, fullText) {
+  function finalizeAssistantStream(div, fullText, motivoDoFim) {
     watchUserScroll(false);
     div.classList.remove("streaming");
     div.style.minHeight = "";
-    renderAssistantInto(div, fullText);
+    renderAssistantInto(div, fullText, motivoDoFim);
     // Reposiciona o início da resposta no topo — mas só se a pessoa não tiver
     // rolado a tela sozinha enquanto lia, para não arrancá-la de onde estava.
     if (!userScrolledDuringStream) scrollToStartOf(div);
@@ -924,6 +1005,11 @@
     pdfBtn.disabled = !hasContent;
   }
 
+  // Liga/desliga o brilho pulsante dos botões de WhatsApp e PDF.
+  function destacarBotoesDeExportar(ligado) {
+    [whatsappBtn, pdfBtn].forEach((b) => b.classList.toggle("destaque", !!ligado));
+  }
+
   function restartConversation() {
     // Se havia uma resposta sendo escrita, cancela de verdade antes de limpar tudo.
     if (activeAbortController) {
@@ -932,6 +1018,7 @@
     }
     setLoading(false);
     isProcessing = false;
+    destacarBotoesDeExportar(false);
     history = [];
     inputLabelEl.classList.remove("hidden");
     inputEl.value = "";
@@ -971,11 +1058,30 @@
     let full = "";
     let bubble = null;
     let renderTimer = null;
+    let motivoDoFim = null;
 
-    // Se o primeiro pedaço não chegar a tempo, corta e parte para o plano B.
-    let firstChunkTimer = setTimeout(() => {
-      try { controller.abort(); } catch (e) {}
-    }, FIRST_CHUNK_TIMEOUT_MS);
+    // VIGIA DE INATIVIDADE (corrige o travamento no relatório final).
+    //
+    // Antes existia um cronômetro só para o PRIMEIRO pedaço de texto: assim que ele
+    // chegava, o cronômetro era cancelado e a partir dali NADA mais vigiava a
+    // conexão. Se o Google parasse no meio do texto — o que acontece justamente na
+    // mensagem mais longa, o relatório final — a espera era infinita: o cursor
+    // ficava piscando para sempre e a trava interna nunca era liberada, deixando
+    // todos os botões do site mortos. Era exatamente o travamento relatado.
+    //
+    // Agora o cronômetro é REARMADO a cada pedaço que chega. Ele só dispara se a
+    // conexão ficar realmente parada, e nesse caso encerramos a leitura, aproveitamos
+    // o texto que já chegou e devolvemos o controle do site para a pessoa.
+    let watchdog = null;
+    let travou = false;
+    const rearmarVigia = (ms) => {
+      if (watchdog) clearTimeout(watchdog);
+      watchdog = setTimeout(() => {
+        travou = true;
+        try { controller.abort(); } catch (e) {}
+      }, ms);
+    };
+    rearmarVigia(FIRST_CHUNK_TIMEOUT_MS);
 
     const pintar = () => {
       if (bubble) bubble.innerHTML = renderMarkdown(full.split(CLOSING_MARKER).join(""));
@@ -986,6 +1092,8 @@
         const { done, value } = await reader.read();
         if (done) break;
 
+        // Chegou dado: a conexão está viva, então o vigia recomeça a contagem.
+        rearmarVigia(STALL_TIMEOUT_MS);
         buffer += decoder.decode(value, { stream: true });
 
         let corte;
@@ -1001,10 +1109,10 @@
           let obj;
           try { obj = JSON.parse(cru); } catch (e) { continue; }
 
+          if (obj.finishReason) motivoDoFim = obj.finishReason;
+
           if (typeof obj.t === "string" && obj.t) {
             if (!bubble) {
-              clearTimeout(firstChunkTimer);
-              firstChunkTimer = null;
               setLoading(false);
               bubble = beginAssistantStream();
             }
@@ -1020,7 +1128,7 @@
     } catch (e) {
       // Conexão interrompida: seguimos com o que já tiver chegado.
     } finally {
-      if (firstChunkTimer) clearTimeout(firstChunkTimer);
+      if (watchdog) clearTimeout(watchdog);
       if (renderTimer) clearTimeout(renderTimer);
     }
 
@@ -1029,8 +1137,18 @@
       return false;
     }
 
+    // Se a conexão parou no meio, o texto recebido está incompleto. Guardar uma
+    // resposta pela metade no histórico bagunçaria as próximas etapas da conversa,
+    // então descartamos esse pedaço e devolvemos "false": quem chamou refaz o
+    // pedido pelo caminho comum, que espera a resposta inteira e a entrega completa.
+    if (travou) {
+      if (bubble) bubble.remove();
+      setLoading(true);
+      return false;
+    }
+
     commitAssistantReply(attemptedHistory, full);
-    finalizeAssistantStream(bubble, full);
+    finalizeAssistantStream(bubble, full, motivoDoFim);
     return true;
   }
 
@@ -1078,6 +1196,9 @@
       }
 
       // 2) Plano B: pedido comum, esperando a resposta inteira.
+      // Precisa de um controlador NOVO: o anterior pode já ter sido cancelado pelo
+      // vigia de inatividade, e reusá-lo faria este pedido nascer morto.
+      activeAbortController = new AbortController();
       try {
         const res = await fetch(WORKER_URL, {
           method: "POST",
