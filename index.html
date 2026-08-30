@@ -1109,7 +1109,13 @@
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return (data && data.reply) || null;
+    if (!data || !data.reply) return null;
+    // REGRA ABSOLUTA: uma resposta cortada NUNCA entra no cache. Se guardássemos,
+    // ela seria entregue instantaneamente na escolha da pessoa — cortada, sem
+    // opções no fim e sem nenhuma saída. Melhor não ter nada preparado e buscar
+    // na hora do que entregar pela metade.
+    if (textoFoiInterrompido(data.finishReason)) return null;
+    return data.reply;
   }
 
   async function iniciarPreBusca(opcoes) {
@@ -1342,33 +1348,50 @@
       }
 
       // 2) Plano B: pedido comum, esperando a resposta inteira.
-      // Precisa de um controlador NOVO: o anterior pode já ter sido cancelado pelo
-      // vigia de inatividade, e reusá-lo faria este pedido nascer morto.
-      activeAbortController = new AbortController();
-      try {
-        const res = await fetch(WORKER_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
-          body: JSON.stringify({ messages: attemptedHistory, stream: false }),
-          signal: activeAbortController.signal,
-        });
+      //
+      // Tenta até duas vezes, e SÓ aceita um texto que o Google tenha declarado
+      // completo. Uma resposta cortada nunca é mostrada: ela deixa a pessoa sem
+      // as opções de continuar, que é justamente o travamento que queremos
+      // eliminar. Se as duas tentativas vierem cortadas, preferimos a mensagem
+      // amigável com o botão "Tentar novamente" — nunca um texto pela metade.
+      let completa = null;
+      let houveRede = false;
 
-        let data;
-        try { data = await res.json(); } catch (e) { data = {}; }
+      for (let tentativa = 0; tentativa < 2 && !completa; tentativa++) {
+        // Controlador NOVO a cada tentativa: o anterior pode já ter sido
+        // cancelado pelo vigia de inatividade, e reusá-lo faria o pedido
+        // nascer morto.
+        activeAbortController = new AbortController();
+        try {
+          const res = await fetch(WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-App-Secret": APP_SECRET },
+            body: JSON.stringify({ messages: attemptedHistory, stream: false }),
+            signal: activeAbortController.signal,
+          });
 
-        setLoading(false);
+          let data;
+          try { data = await res.json(); } catch (e) { data = {}; }
 
-        if (!res.ok || !data.reply) {
-          falhar(FRIENDLY_ERROR_TEXT);
-          return;
+          if (res.ok && data.reply && !textoFoiInterrompido(data.finishReason)) {
+            completa = data.reply;
+          }
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+          houveRede = true;
+          break;
         }
-
-        commitAssistantReply(attemptedHistory, data.reply);
-        appendAssistantBubble(data.reply);
-      } catch (err) {
-        if (err && err.name === "AbortError") return;
-        falhar(FRIENDLY_NETWORK_ERROR_TEXT);
       }
+
+      setLoading(false);
+
+      if (!completa) {
+        falhar(houveRede ? FRIENDLY_NETWORK_ERROR_TEXT : FRIENDLY_ERROR_TEXT);
+        return;
+      }
+
+      commitAssistantReply(attemptedHistory, completa);
+      appendAssistantBubble(completa);
     } finally {
       // Libera a trava aconteça o que acontecer — sem isto, uma falha inesperada
       // deixaria o site travado para sempre, sem aceitar novos envios.
