@@ -784,9 +784,16 @@
 
   let loadingPhraseTimer = null;
 
+  function removeTypingIndicator() {
+    if (loadingPhraseTimer) {
+      clearInterval(loadingPhraseTimer);
+      loadingPhraseTimer = null;
+    }
+    const typingEl = document.getElementById("typing-indicator");
+    if (typingEl) typingEl.remove();
+  }
+
   function setInitialLoadingUI(isLoading) {
-    // Trava apenas botões visuais e cria o "typing" inicial.
-    // A trava global (isProcessing) é gerenciada em volta disso.
     sendBtn.disabled = isLoading;
     inputEl.disabled = isLoading;
     
@@ -805,14 +812,10 @@
           phraseIdx = (phraseIdx + 1) % LOADING_PHRASES.length;
           const el = document.getElementById("typing-indicator");
           if (el) el.textContent = LOADING_PHRASES[phraseIdx];
-        }, 2000); // Trocando mais rápido por conta da velocidade da API
+        }, 2000); 
       }
     } else {
-      if (loadingPhraseTimer) {
-        clearInterval(loadingPhraseTimer);
-        loadingPhraseTimer = null;
-      }
-      if (typingEl) typingEl.remove();
+      removeTypingIndicator();
     }
   }
 
@@ -930,9 +933,8 @@
               try { data = JSON.parse(dataStr); } catch(e){}
 
               if (eventType === "meta" || eventType === "delta") {
-                // Remove o loading (estamos conectados e recebendo)
-                setInitialLoadingUI(false); 
-                // Cria a bolha na 1ª vez
+                // Ao invés de destravar o input, apenas esconde o "Refletindo..."
+                removeTypingIndicator(); 
                 if (!assistantBubble) {
                   assistantBubble = createEmptyAssistantBubble();
                 }
