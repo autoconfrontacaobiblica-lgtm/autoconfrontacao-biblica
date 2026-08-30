@@ -4,6 +4,22 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Aconselhamento Bíblico Cristocêntrico</title>
+<script>
+  // Detecta cedo se a página está incorporada (embed) dentro de outra página, como
+  // um Google Site — nesse caso a altura do iframe é definida por fora e pode não
+  // bater com a tela do celular, o que empurrava o campo "Escreva aqui..." para o
+  // meio da tela. Rodando isto ANTES do CSS pintar a página, evitamos qualquer
+  // "pulo" visual: html.is-embedded já nasce com a classe certa.
+  try {
+    if (window.self !== window.top) {
+      document.documentElement.classList.add("is-embedded");
+    }
+  } catch (e) {
+    // Acesso entre origens bloqueado pelo navegador só acontece quando já estamos
+    // dentro de um iframe de outra origem — ou seja, isso também é sinal de embed.
+    document.documentElement.classList.add("is-embedded");
+  }
+</script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijk2IiBmaWxsPSIjN2EzYjJlIi8+CiAgPHBhdGggZD0iTTEwMCA0MCBMMTAwIDE2MCBNNjAgODIgTDE0MCA4MiIgc3Ryb2tlPSIjZjZmMWU3IiBzdHJva2Utd2lkdGg9IjE4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" />
 <link rel="apple-touch-icon" href="logo.png" />
 <meta property="og:type" content="website" />
@@ -418,6 +434,44 @@
     .toolbar-btn { font-size: 0.76rem; padding: 6px 10px; }
     #input-row { padding: 10px; }
   }
+
+  /* MODO INCORPORADO (embed em Google Sites ou outra página via iframe):
+     não dá para confiar que a altura do iframe bate com a tela do celular, então
+     abandonamos o layout "tela cheia fixa" (que empurrava o campo de digitação
+     para o meio da tela) e deixamos a página fluir normalmente, com o campo de
+     digitação grudado (sticky) na parte de baixo da área visível, onde quer que
+     a pessoa role a página. */
+  html.is-embedded, html.is-embedded body {
+    height: auto;
+  }
+  html.is-embedded body {
+    display: block;
+  }
+  html.is-embedded header {
+    position: static;
+  }
+  html.is-embedded #chat-container {
+    flex: none;
+    height: auto;
+    min-height: 420px;
+    /* #chat-container tinha "overflow: hidden" (para arredondar cantos no modo
+       tela cheia). Isso, sem querer, cria um contêiner de rolagem próprio e
+       impedia o "position: sticky" do campo de digitação de funcionar aqui —
+       por isso liberamos o overflow apenas no modo incorporado. */
+    overflow: visible;
+    border-radius: 14px 14px 0 0;
+  }
+  html.is-embedded #messages {
+    flex: none;
+    overflow-y: visible;
+    min-height: 200px;
+  }
+  html.is-embedded #input-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    box-shadow: 0 -2px 10px rgba(90, 60, 30, 0.06);
+  }
 </style>
 </head>
 <body>
@@ -454,6 +508,14 @@
   const CLOSING_MARKER = "[CONVERSA_CONCLUIDA]";
   const CRISIS_ALERT_TEXT = "Se você estiver passando por uma crise ou sofrimento intenso, não enfrente isso sozinho(a): compartilhe sua dor com pessoas próximas, um pastor ou uma igreja genuinamente cristã, e busque também canais oficiais de apoio — CVV 188 (ligação gratuita, 24h) ou suporte médico/terapêutico profissional.";
   const FOOTER_TEXT = "© Autoconfrontação Bíblica · 2026";
+  // Mensagem sempre amigável para qualquer falha do servidor — nunca mostramos o
+  // texto técnico original do erro (ex.: mensagens em inglês do Gemini) para quem
+  // está usando o site; a pessoa só precisa saber que pode tentar de novo.
+  const FRIENDLY_ERROR_TEXT = "Não deu para concluir agora. Isso costuma ser passageiro — toque em \"Tentar novamente\" em alguns segundos.";
+  const FRIENDLY_NETWORK_ERROR_TEXT = "Não foi possível conectar agora. Verifique sua internet e toque em \"Tentar novamente\".";
+  // Frases que se alternam durante a espera, para a pessoa sentir que algo está
+  // de fato acontecendo (em vez de uma única palavra estática por até 10-15s).
+  const LOADING_PHRASES = ["Refletindo…", "Buscando as Escrituras…", "Preparando uma resposta cuidadosa…"];
   // ============================
 
   const messagesEl = document.getElementById("messages");
@@ -490,6 +552,16 @@
 
   function scrollToBottom() {
     messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // Ao chegar uma nova resposta do conselheiro, a tela deve rolar até o INÍCIO
+  // dessa resposta (não até o fim) — assim a pessoa entende que precisa começar a
+  // ler o texto a partir dali, e desce por conta própria até achar as perguntas
+  // de múltipla escolha no final. scrollIntoView cuida de rolar o contêiner certo
+  // tanto no site sozinho quanto quando ele está incorporado (embed) em outra página.
+  function scrollToStartOf(el) {
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   // A caixa de digitação livre só aparece na primeira mensagem (para descrever a
@@ -714,8 +786,10 @@
       }
     }
 
-    scrollToBottom();
+    scrollToStartOf(div);
   }
+
+  let loadingPhraseTimer = null;
 
   function setLoading(isLoading) {
     sendBtn.disabled = isLoading || inputEl.disabled;
@@ -726,12 +800,25 @@
         typingEl = document.createElement("div");
         typingEl.id = "typing-indicator";
         typingEl.className = "typing";
-        typingEl.textContent = "Refletindo…";
+        typingEl.textContent = LOADING_PHRASES[0];
         messagesEl.appendChild(typingEl);
         scrollToBottom();
+
+        // Troca a frase a cada poucos segundos para dar a sensação de progresso
+        // enquanto o modelo responde, em vez de uma palavra parada na tela.
+        let phraseIdx = 0;
+        loadingPhraseTimer = setInterval(() => {
+          phraseIdx = (phraseIdx + 1) % LOADING_PHRASES.length;
+          const el = document.getElementById("typing-indicator");
+          if (el) el.textContent = LOADING_PHRASES[phraseIdx];
+        }, 2800);
       }
-    } else if (typingEl) {
-      typingEl.remove();
+    } else {
+      if (loadingPhraseTimer) {
+        clearInterval(loadingPhraseTimer);
+        loadingPhraseTimer = null;
+      }
+      if (typingEl) typingEl.remove();
     }
   }
 
@@ -778,15 +865,17 @@
       try {
         data = await res.json();
       } catch (e) {
-        data = { error: "O servidor demorou demais ou retornou uma resposta inesperada." };
+        data = { error: "resposta inesperada" };
       }
 
       setLoading(false);
 
       if (!res.ok || !data.reply) {
+        // Nunca mostramos data.error (texto técnico, geralmente em inglês) para a
+        // pessoa — apenas uma mensagem simples convidando a tentar de novo.
         userWrapper.remove();
         if (forcedText === undefined) inputEl.value = text;
-        appendErrorNote(data.error || "Ocorreu um erro. Tente enviar de novo.", text);
+        appendErrorNote(FRIENDLY_ERROR_TEXT, text);
         return;
       }
 
@@ -798,7 +887,7 @@
       setLoading(false);
       userWrapper.remove();
       if (forcedText === undefined) inputEl.value = text;
-      appendErrorNote("Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.", text);
+      appendErrorNote(FRIENDLY_NETWORK_ERROR_TEXT, text);
     }
   }
 
